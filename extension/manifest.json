@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Feason — Post a Gleam",
+  "short_name": "Post a Gleam",
+  "description": "Share a reflection, prayer, question, praise, or resource to Feason from any tab.",
+  "version": "1.0.0",
+  "homepage_url": "https://www.feason.com/",
+  "minimum_chrome_version": "111",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA34EWxSjIkQWAvOFQLzISvQeRa/j1sI9xsXuI1aUzN2cQzRyPP+erF3oKzHqdHT58M34oqn54lsMzYvn+dChN5eZh96pWYLvvu//S9bxtBtfvnj3JtkQvLfs2RVDdzEAifjq9jMpvE/EfzLbvOIuOtM8xIdWXZloprrjZkylV/3QImrW4XqdcW925EGvvp3Y5tBSOR9GDZwuunc/s/RwNbFfu6el7tJIaEMcmX9hmrFSV08JaKgq8cjWtVxY7PEy1seB3kyNZC2yKp4ZCsOgYLiLHG+mCDsMLaK5FOBuhG8VR7Q59isnKreRe0IcLqn2mdYYq9U9idPRqhwE33Eut3wIDAQAB",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "identity",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.feason.com/*"
+  ],
+  "background": {
+    "service_worker": "background.mjs",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Post a Gleam",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Post a Gleam from this tab"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

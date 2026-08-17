@@ -1,0 +1,12 @@
+{
+  "name": "feason-chrome-extension-source",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run extension/*.test.mjs"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0"
+  }
+}

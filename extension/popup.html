@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Post a Gleam</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body data-category="reflection">
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <p class="wordmark">FEASON</p>
+          <h1>New Gleam</h1>
+        </div>
+        <button id="accountButton" class="account-button" type="button" hidden>Sign out</button>
+      </header>
+
+      <section id="signInView" class="sign-in" hidden>
+        <div class="orb">
+          <img src="feason-logo.png" alt="Feason">
+        </div>
+        <p class="eyebrow">SHARE FROM ANYWHERE</p>
+        <h2>A thought worth carrying</h2>
+        <p>Sign in with your Feason account, then share this page without leaving the tab.</p>
+        <button id="signInButton" class="primary-button" type="button">Sign in to Feason</button>
+        <p id="signInError" class="message error" role="alert"></p>
+      </section>
+
+      <form id="composer" class="composer" hidden>
+        <div id="categoryList" class="categories" role="listbox" aria-label="Gleam kind"></div>
+
+        <section class="writing-card">
+          <div class="card-heading">
+            <span id="kindLabel">GLEAM · REFLECTION</span>
+            <span id="characterCount">0 / 2026</span>
+          </div>
+          <textarea id="body" rows="8" maxlength="2026" placeholder="Share a reflection…" aria-label="Gleam text" required></textarea>
+          <div id="attributionRow" class="attribution" hidden>
+            <span aria-hidden="true">—</span>
+            <input id="attribution" type="text" maxlength="80" placeholder="Whose words? (optional)" aria-label="Aphorism attribution">
+          </div>
+        </section>
+
+        <div id="sourceCard" class="source-card" hidden>
+          <span class="source-icon" aria-hidden="true">↗</span>
+          <div>
+            <strong id="sourceTitle">Current page</strong>
+          </div>
+        </div>
+
+        <p id="statusMessage" class="message" role="status"></p>
+        <button id="postButton" class="primary-button post-button" type="submit" disabled>
+          <span class="post-label">Post Gleam</span>
+          <span class="post-arrow" aria-hidden="true">→</span>
+        </button>
+      </form>
+
+      <section id="successView" class="success" hidden>
+        <div class="success-mark" aria-hidden="true">✓</div>
+        <p class="eyebrow">SHARED WITH THE FELLOWSHIP</p>
+        <h2 id="successTitle">Reflection posted.</h2>
+        <p>Your gleam is now part of the field.</p>
+        <button id="viewGleamButton" class="primary-button" type="button">View your gleam</button>
+        <button id="anotherButton" class="secondary-button" type="button">Post another</button>
+      </section>
+    </main>
+    <script type="module" src="popup.mjs"></script>
+  </body>
+</html>

@@ -1,0 +1,382 @@
+:root {
+  color-scheme: dark;
+  --ground: #573c99;
+  --light: #b598ec;
+  --base: #8059cf;
+  --deep: #5f3fa8;
+  --edge: #c8afff;
+  --card-top: #342650;
+  --card-bottom: #261b3c;
+  --paper: #fff8e8;
+  --paper-muted: rgba(255, 248, 232, 0.7);
+  --gilt: #d6b35d;
+  --ink: #16130f;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 390px;
+  min-height: 540px;
+  margin: 0;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+  color: var(--paper);
+  background:
+    radial-gradient(circle at 88% 3%, color-mix(in srgb, var(--light) 44%, transparent), transparent 33%),
+    radial-gradient(circle at 0% 95%, color-mix(in srgb, var(--deep) 52%, transparent), transparent 38%),
+    var(--ground);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color 220ms ease;
+}
+
+/* The signed-out welcome borrows the reference's fluid cobalt / vermilion /
+   warm-paper field. Oversized blurred shapes keep it atmospheric rather than
+   reading as a conventional multi-stop gradient. Composer views retain each
+   Gleam category's own stained-glass ground below. */
+body[data-view="sign-in"] {
+  isolation: isolate;
+  color: var(--ink);
+  background: #ff5b24;
+}
+
+body[data-view="sign-in"]::before {
+  position: fixed;
+  z-index: -2;
+  inset: -70px;
+  content: "";
+  background:
+    radial-gradient(ellipse 64% 55% at 100% 9%, #f8f3df 0 48%, rgba(248,243,223,.35) 64%, transparent 76%),
+    radial-gradient(ellipse 65% 78% at -8% 88%, #315df4 0 38%, #1738ce 59%, rgba(23,56,206,.2) 73%, transparent 79%),
+    radial-gradient(ellipse 57% 62% at 106% 100%, #ff4d20 0 52%, rgba(255,77,32,.28) 70%, transparent 80%),
+    radial-gradient(ellipse 66% 70% at 5% 2%, #ff5b14 0 48%, #fb4823 67%, transparent 80%),
+    #f08a68;
+  filter: blur(27px) saturate(1.16);
+  transform: scale(1.08);
+}
+
+body[data-view="sign-in"]::after {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: .16;
+  background-image:
+    repeating-radial-gradient(circle at 17% 23%, rgba(25,18,12,.35) 0 .45px, transparent .7px 2.2px),
+    repeating-radial-gradient(circle at 77% 61%, rgba(255,255,255,.42) 0 .4px, transparent .7px 2.6px);
+  mix-blend-mode: soft-light;
+}
+
+body[data-category="prayer"] { --ground:#175829; --light:#3fbf63; --base:#1e8c3a; --deep:#14602a; --edge:#96ebaf; --card-top:#23402e; --card-bottom:#182c20; }
+body[data-category="question"] { --ground:#24418c; --light:#5b87e8; --base:#2f5fc4; --deep:#21459a; --edge:#a0c3ff; --card-top:#22335c; --card-bottom:#182342; }
+body[data-category="praise"] { --ground:#845c18; --light:#d9a83c; --base:#b9841e; --deep:#8f6516; --edge:#f0d9a4; --card-top:#453413; --card-bottom:#30240d; }
+body[data-category="resource"] { --ground:#9b2116; --light:#ef5a45; --base:#d42b1e; --deep:#a81f14; --edge:#ffa596; --card-top:#47201a; --card-bottom:#331612; }
+body[data-category="aphorism"] { --ground:#4b3655; --light:#c0a2c9; --base:#8d6b99; --deep:#654a70; --edge:#ddc7e4; --card-top:#33273a; --card-bottom:#241b29; }
+
+button, textarea, input { font: inherit; }
+button { color: inherit; }
+
+.shell {
+  position: relative;
+  z-index: 1;
+  padding: 20px;
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+body[data-view="sign-in"] .masthead {
+  margin-bottom: 12px;
+  color: #17130f;
+  text-shadow: 0 1px 0 rgba(255,255,255,.2);
+}
+
+body[data-view="sign-in"] .masthead .wordmark {
+  color: rgba(23,19,15,.62);
+}
+
+.wordmark, .eyebrow {
+  margin: 0 0 3px;
+  color: var(--edge);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.22em;
+}
+
+h1, h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  line-height: 1.05;
+}
+h1 { font-size: 30px; }
+h2 { font-size: 27px; }
+
+.account-button {
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(0,0,0,.11);
+  color: var(--paper-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.categories {
+  display: flex;
+  gap: 7px;
+  margin: 0 -20px 12px;
+  padding: 2px 20px 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.categories::-webkit-scrollbar { display: none; }
+
+.category-chip {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(0,0,0,.12);
+  color: var(--paper-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+.category-chip.selected {
+  border-color: var(--edge);
+  color: #19130e;
+  background: linear-gradient(155deg, var(--edge), var(--light) 48%, var(--base));
+  box-shadow: inset 0 1px rgba(255,255,255,.5), 0 5px 18px rgba(0,0,0,.15);
+}
+
+.writing-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--edge) 32%, transparent);
+  border-radius: 18px;
+  padding: 15px 16px 13px;
+  background: linear-gradient(145deg, var(--card-top), var(--card-bottom));
+  box-shadow: 0 16px 36px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.05);
+}
+
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--edge);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .18em;
+}
+#characterCount { color: var(--paper-muted); letter-spacing: 0; }
+#characterCount.near-limit { color: #ffd1ca; }
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 178px;
+  margin-top: 14px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--paper);
+  caret-color: var(--edge);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  line-height: 1.42;
+}
+textarea::placeholder { color: rgba(255,248,232,.38); }
+
+.attribution {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  padding-top: 10px;
+  color: var(--edge);
+}
+.attribution input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--paper);
+  font-family: Georgia, "Times New Roman", serif;
+}
+.attribution input::placeholder { color: rgba(255,248,232,.38); }
+
+.source-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 11px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 13px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.13);
+}
+.source-icon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--edge);
+  color: var(--ground);
+  font-weight: 800;
+}
+.source-card div { min-width: 0; }
+.source-card strong, .source-card span { display: block; }
+.source-card strong {
+  overflow: hidden;
+  color: var(--paper);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.primary-button, .secondary-button {
+  width: 100%;
+  border-radius: 999px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.primary-button {
+  border: 1px solid var(--edge);
+  background: linear-gradient(155deg, var(--edge), var(--light) 50%, var(--base));
+  color: #17120d;
+  box-shadow: inset 0 1px rgba(255,255,255,.54), 0 8px 24px rgba(0,0,0,.18);
+}
+.primary-button:disabled { cursor: default; filter: saturate(.35); opacity: .48; }
+.post-button { display: flex; justify-content: center; gap: 8px; margin-top: 7px; }
+.post-arrow { font-size: 17px; line-height: 1; }
+.secondary-button {
+  margin-top: 8px;
+  border: 1px solid rgba(255,255,255,.27);
+  background: rgba(0,0,0,.13);
+  color: var(--paper);
+}
+
+.message {
+  min-height: 20px;
+  margin: 8px 3px 0;
+  color: var(--paper-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.message.error { color: #ffd4cd; }
+
+.sign-in, .success {
+  display: flex;
+  min-height: 420px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.sign-in > p:not(.eyebrow):not(.message), .success > p:not(.eyebrow):not(.message) {
+  max-width: 300px;
+  margin: 12px auto 22px;
+  color: var(--paper-muted);
+}
+.sign-in .primary-button, .success .primary-button, .success .secondary-button { max-width: 280px; }
+.sign-in .message { margin-top: 12px; }
+
+body[data-view="sign-in"] .sign-in {
+  min-height: 408px;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.58);
+  border-radius: 30px;
+  padding: 28px 22px 24px;
+  background: linear-gradient(145deg, rgba(255,251,239,.78), rgba(255,246,226,.53));
+  box-shadow:
+    0 28px 60px rgba(35,27,20,.22),
+    inset 0 1px 0 rgba(255,255,255,.76);
+  backdrop-filter: blur(22px) saturate(1.08);
+}
+
+body[data-view="sign-in"] .sign-in .eyebrow {
+  color: #2846d9;
+}
+
+body[data-view="sign-in"] .sign-in h2 {
+  color: #18140f;
+  font-size: 29px;
+  letter-spacing: -.025em;
+}
+
+body[data-view="sign-in"] .sign-in > p:not(.eyebrow):not(.message) {
+  color: rgba(24,20,15,.68);
+}
+
+body[data-view="sign-in"] .sign-in .primary-button {
+  border-color: rgba(255,255,255,.76);
+  background: linear-gradient(108deg, #2349e8 0%, #284fe5 42%, #f65328 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.45),
+    0 12px 30px rgba(37,56,165,.3);
+  color: #fffaf0;
+  text-shadow: 0 1px 1px rgba(20,15,10,.18);
+}
+
+body[data-view="sign-in"] .sign-in .primary-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+body[data-view="sign-in"] .sign-in .message.error {
+  min-height: 0;
+  margin-bottom: 0;
+  border-radius: 9px;
+  padding: 5px 8px;
+  background: rgba(255,248,232,.52);
+  color: #8a291c;
+}
+
+.orb, .success-mark {
+  display: grid;
+  width: 74px;
+  height: 74px;
+  margin-bottom: 20px;
+  place-items: center;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, var(--edge), var(--light) 38%, var(--deep) 78%);
+  box-shadow: 0 18px 40px rgba(0,0,0,.22), inset 0 1px 3px rgba(255,255,255,.55);
+  color: #24182f;
+  font-size: 29px;
+}
+.success-mark { font-family: sans-serif; font-weight: 800; }
+
+body[data-view="sign-in"] .orb {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 18px;
+  border-color: rgba(255,255,255,.76);
+  overflow: hidden;
+  background: #fff9e7;
+  box-shadow:
+    0 15px 34px rgba(33,42,128,.28),
+    inset 0 1px 2px rgba(255,255,255,.74);
+  color: #fffaf0;
+}
+
+body[data-view="sign-in"] .orb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+[hidden] { display: none !important; }

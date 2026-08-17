@@ -1,0 +1,9 @@
+title = "Feason Chrome extension secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chrome manifest public identity key; this cannot sign packages or authenticate to Feason"
+targetRules = ["generic-api-key"]
+paths = ['''^extension/manifest\.json$''']
