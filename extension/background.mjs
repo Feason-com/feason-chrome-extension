@@ -269,7 +269,7 @@ async function activePage(action, locators = [], tab = null, expectedUrl = '') {
 }
 async function pageCommand(action) {
   const generation = authGeneration;
-  const page = await activePage(action === 'scan' ? 'scan' : 'capture');
+  const page = await activePage(action === 'capture' ? 'capture' : action === 'scan' ? 'scan' : 'source');
   if (action === 'scan') return { url: page.url, title: page.title, references: findPageReferences(page.text, await localBooks()) };
   if (action === 'restore') {
     const items = []; let cursor = null, pages = 0;

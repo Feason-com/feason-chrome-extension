@@ -524,3 +524,15 @@ it('keeps address-bar suggestions local and performs the accepted lookup in a Fe
   expect(h.session.feasonSelection).toMatchObject({tool:'study',text:'John 15:5'});
   expect(h.chrome.tabs.create).toHaveBeenCalledWith({url:`chrome-extension://${extensionId}/popup.html?surface=sidepanel`,active:true});
 });
+
+it('restores highlights without capturing an unrelated long selection', async () => {
+  const h=harness(); h.local.feasonAuthToken='synthetic-token';
+  h.chrome.scripting.executeScript.mockImplementation(async ({args}: {args:unknown[]}) => {
+    if(args[0]==='capture') throw new Error('Choose a shorter quotation');
+    return [{result:args[0]==='restore' ? {matched:0,total:0} : {url:'https://example.com/article',title:'A useful article'}}] as never;
+  });
+  h.fetchMock.mockResolvedValue(Response.json({items:[],nextCursor:null}));
+  await import('./background.mjs');
+  expect(await h.send({type:'feason:page',action:'restore'})).toMatchObject({ok:true,data:{matched:0,total:0}});
+  expect(h.chrome.scripting.executeScript.mock.calls[0][0].args[0]).toBe('source');
+});
