@@ -14,14 +14,20 @@ The key in `extension/manifest.json` is Chrome's public extension identity key. 
 2. Enable **Developer mode**.
 3. Choose **Load unpacked** and select the `extension/` directory.
 
-Run the synthetic unit tests with:
+Use Node 24 or later. Run the synthetic unit, popup/worker lifecycle, and release-package tests with:
 
 ```sh
-npm install
+npm ci
 npm test
 ```
 
-See `extension/README.md` for packaging and Chrome Web Store notes.
+Package the self-contained extension with:
+
+```sh
+npm run extension:package -- /tmp/feason-extension-1.1.0.zip
+```
+
+Version 1.1 matches the iOS Gleam composer and keeps sign-in, posting, and drafts intact across popup closure. Fonts and their licenses are bundled locally. See `extension/README.md` for installation, packaging, and Chrome Web Store notes.
 
 ## Security
 

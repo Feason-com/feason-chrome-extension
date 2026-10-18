@@ -7,6 +7,7 @@ import {
   draftFromContext,
   errorMessage,
   gleamBodyWithSource,
+  gleamPayload,
   safeWebUrl,
   textLimitWithSource,
 } from './shared.mjs';
@@ -50,6 +51,29 @@ describe('Chrome Gleam helpers', () => {
   it('does not attach privileged browser pages', () => {
     expect(safeWebUrl('chrome://extensions')).toBe('');
     expect(draftFromContext({}, { url: 'chrome://extensions' }).body).toBe('');
+  });
+
+  it('does not silently truncate a draft when changing categories', () => {
+    const body = 'a'.repeat(300);
+    expect(gleamBodyWithSource(body, '', 'aphorism')).toBe(body);
+    expect(() => gleamPayload({ body, category: 'aphorism' })).toThrow('too long');
+    expect(gleamPayload({ body, category: 'reflection' }).body).toBe(body);
+  });
+
+  it('validates the full body including its attached URL', () => {
+    expect(() => gleamPayload({ body: 'a'.repeat(230), sourceUrl: 'https://example.com/article', category: 'aphorism' })).toThrow('too long');
+    expect(() => gleamPayload({ body: '', sourceUrl: `https://example.com/${'a'.repeat(240)}`, category: 'aphorism' })).toThrow('too long');
+  });
+
+  it('includes only aphorism attribution in the API payload', () => {
+    const draft = { body: 'A little light.', attribution: ' A writer ', category: 'aphorism' };
+    expect(gleamPayload(draft)).toEqual({ body: draft.body, category: 'aphorism', aphorism_attribution: 'A writer' });
+    expect(gleamPayload({ ...draft, category: 'reflection' })).toEqual({ body: draft.body, category: 'reflection' });
+  });
+
+  it('labels a context-menu link with its own domain instead of the surrounding page title', () => {
+    expect(draftFromContext({ linkUrl: 'https://example.org/article' }, { url: 'https://example.com/', title: 'Unrelated page' }).sourceTitle).toBe('example.org');
+    expect(safeWebUrl('https://user:password@example.com/')).toBe('');
   });
 
   it('surfaces API errors without exposing response internals', () => {

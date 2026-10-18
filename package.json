@@ -1,12 +1,17 @@
 {
   "name": "feason-chrome-extension-source",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run extension/*.test.mjs"
+    "test": "vitest run extension",
+    "extension:package": "node scripts/package-chrome-extension.mts"
   },
   "devDependencies": {
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "jsdom": "^29.1.1"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

@@ -23,7 +23,8 @@ export function categoryLimit(key) {
 export function safeWebUrl(value) {
   try {
     const url = new URL(value || '');
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+    return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password
+      ? url.toString() : '';
   } catch {
     return '';
   }
@@ -47,12 +48,27 @@ function fitTextForSource(text, source) {
 export function gleamBodyWithSource(text, source, category = 'reflection') {
   const cleanText = (text || '').trim();
   const cleanSource = safeWebUrl(source);
-  if (!cleanSource) return cleanText.slice(0, categoryLimit(category));
-  if (!cleanText) return cleanSource.length <= categoryLimit(category) ? cleanSource : '';
+  if (!cleanSource) return cleanText;
+  return cleanText ? `${cleanText}\n\n${cleanSource}` : cleanSource;
+}
 
-  const room = textLimitWithSource(category, cleanSource);
-  if (room <= 0) return '';
-  return `${cleanText.slice(0, room).trimEnd()}\n\n${cleanSource}`;
+// Validate without cutting the member's words when a category has a smaller cap.
+export function gleamPayload(draft) {
+  const category = categoryDetails(draft?.category).key;
+  const body = gleamBodyWithSource(draft?.body, draft?.sourceUrl, category);
+  if (!body) throw new Error('Write a Gleam or attach a page before posting.');
+  if (body.length > categoryLimit(category)) {
+    throw new Error(`Your ${categoryDetails(category).label.toLowerCase()} is too long. Shorten it or remove the attached page.`);
+  }
+  const attribution = typeof draft?.attribution === 'string' ? draft.attribution.trim() : '';
+  if (category === 'aphorism' && attribution.length > ATTRIBUTION_MAX) {
+    throw new Error(`Attribution must be ${ATTRIBUTION_MAX} characters or fewer.`);
+  }
+  return {
+    body,
+    category,
+    ...(category === 'aphorism' && attribution ? { aphorism_attribution: attribution } : {}),
+  };
 }
 
 export function draftFromContext(info = {}, tab = {}) {
@@ -66,7 +82,7 @@ export function draftFromContext(info = {}, tab = {}) {
     body,
     category: source ? 'resource' : 'reflection',
     sourceUrl: source,
-    sourceTitle: (tab.title || '').trim(),
+    sourceTitle: linkUrl && linkUrl !== pageUrl ? new URL(linkUrl).hostname : (tab.title || '').trim(),
   };
 }
 
