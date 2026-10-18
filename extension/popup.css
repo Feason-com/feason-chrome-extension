@@ -99,3 +99,62 @@ body[data-view="sign-in"], body[data-view="loading"] { background:var(--night); 
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
 @media (max-width:374px) { .compose-header { grid-template-columns:78px 1fr 78px; gap:4px; } .compose-header h1 { font-size:24px; } .quiet-button { padding-inline:12px; } }
 [hidden] { display:none !important; }
+
+/* Study rooms share the native app’s dark surfaces and gold controls. */
+body[data-tool]:not([data-tool="gleam"]) { --ground:#0b1518; --light:#d6b45e; --base:#b58c38; --edge:#edcf86; --eyebrow:#c9a24a; --card-top:#152c2a; --card-bottom:#102020; }
+body[data-tool="feasy"] { --ground:#171022; --card-top:#2c2040; --card-bottom:#20172d; }
+body[data-tool="inbox"] { --ground:#101923; --card-top:#1c2a37; --card-bottom:#15212d; }
+body[data-tool="lexicon"] { --ground:#25170e; --card-top:#3c2819; --card-bottom:#2e1e13; }
+html:has(body[data-surface="sidepanel"]) { width:100%; }
+body[data-surface="sidepanel"] { min-width:280px; min-height:100vh; }
+.companion-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px 3px; }
+.companion-brand { display:flex; align-items:center; gap:8px; font:500 24px "Cormorant Garamond",serif; }
+.companion-header .text-button { font-size:11px; }
+.tool-navigation { display:flex; gap:2px; padding:3px 10px 9px; border-bottom:1px solid rgb(251 249 244 / 12%); }
+.tool-navigation button { flex:1; min-width:0; min-height:38px; padding:6px 3px; border:0; border-radius:8px; background:transparent; font-size:11px; color:var(--paper-muted); }
+.tool-navigation button[aria-current="page"] { color:var(--paper); background:rgb(251 249 244 / 12%); box-shadow:inset 0 -1px var(--edge); }
+.workspace { padding:24px 18px 30px; }
+.tool-panel > h1 { font-size:35px; margin:8px 0; }
+.tool-intro { color:var(--paper-muted); font:18px/1.5 "EB Garamond",serif; margin-bottom:24px; }
+h2 { font:500 26px/1.15 "Cormorant Garamond",serif; margin:8px 0 14px; }
+.tool-form { display:flex; flex-direction:column; gap:9px; }
+.tool-form label { color:var(--paper-muted); font-size:11px; letter-spacing:.04em; }
+.tool-form input, .tool-form textarea { width:100%; min-width:0; border:1px solid rgb(251 249 244 / 20%); border-radius:10px; padding:12px; background:rgb(0 0 0 / 15%); color:var(--paper); }
+.tool-form textarea { resize:vertical; min-height:100px; }
+.tool-form .primary-button { align-self:start; }
+.input-action { display:flex; gap:8px; }
+.input-action .primary-button { flex-shrink:0; padding-inline:14px; border-radius:10px; font-size:12px; min-height:45px; }
+.study-result, .inbox-item, .selection-card { margin:16px 0; padding:20px; background:linear-gradient(150deg,var(--card-top),var(--card-bottom)); border:1px solid rgb(251 249 244 / 12%); border-radius:16px; overflow-wrap:anywhere; }
+#verseText { font:21px/1.6 "EB Garamond",serif; }
+#verseText p + p { margin-top:12px; }
+#verseText sup { color:var(--edge); font:11px "DM Sans",sans-serif; padding-right:4px; }
+.result-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+.result-actions button { font-size:11px; }
+.field-note { color:var(--paper-muted); font:12px/1.6 "DM Sans",sans-serif; margin:8px 0; }
+.selection-card { margin:0 0 22px; padding:14px; }
+#selectionText { max-height:104px; overflow:auto; font:17px/1.45 "EB Garamond",serif; margin:8px 0; white-space:pre-wrap; }
+#feasyAnswer { white-space:pre-wrap; font:19px/1.6 "EB Garamond",serif; }
+.feasy-source { border-top:1px solid rgb(251 249 244 / 15%); padding-top:14px; margin-top:16px; font:16px/1.5 "EB Garamond",serif; }
+a { color:var(--edge); text-underline-offset:3px; }
+.feasy-source a { display:block; margin-bottom:8px; font:12px "DM Sans",sans-serif; }
+.inbox-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:24px; }
+.inbox-heading h2 { font-size:25px; margin:0; }
+.inbox-item > a { font:24px/1.2 "Cormorant Garamond",serif; display:block; margin:10px 0; }
+.inbox-item blockquote { white-space:pre-wrap; max-height:180px; overflow:auto; margin:14px 0; font:18px/1.5 "EB Garamond",serif; }
+.word-entry > p:not(.eyebrow):not(.field-note) { font:18px/1.55 "EB Garamond",serif; margin:8px 0; white-space:pre-wrap; }
+.word-entry .transliteration { color:var(--edge); }
+.word-occurrences { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.word-occurrences h2 { width:100%; margin:0; }
+.word-occurrences a { font-size:12px; }
+.composer-extras { margin:16px 0; }
+.image-picker { display:inline-flex; position:relative; cursor:pointer; font-size:12px; }
+.image-picker input { position:absolute; inset:0; opacity:0; width:100%; cursor:pointer; }
+#gleamImage, #previewImage { width:100%; max-height:260px; object-fit:contain; border-radius:10px; margin-top:12px; }
+.anchor-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--edge); }
+.anchor-row .text-button { font-size:11px; }
+.preview-dialog { color:var(--paper); background:linear-gradient(140deg,var(--card-top),var(--card-bottom)); border:1px solid rgb(251 249 244 / 25%); border-radius:20px; width:calc(100% - 24px); max-width:500px; max-height:90vh; overflow:auto; padding:24px; }
+.preview-dialog::backdrop { background:rgb(5 7 12 / 80%); }
+.preview-dialog h2 { margin-top:12px; }
+.preview-body { font:21px/1.5 "EB Garamond",serif; white-space:pre-wrap; overflow-wrap:anywhere; }
+.preview-dialog > button { display:block; width:100%; margin-top:14px; }
+@media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }

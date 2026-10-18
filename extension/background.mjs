@@ -1,4 +1,4 @@
-import { FEASON_ORIGIN, draftFromContext, errorMessage, gleamPayload } from './shared.mjs';
+import { FEASON_ORIGIN, draftFromContext, errorMessage, gleamPayload, studyQuestion, feasyEventLines, imageData } from './shared.mjs';
 import { authTokenFromCallback, extensionIdFromRedirect } from './auth.mjs';
 
 const MENU_IDS = {
@@ -9,6 +9,77 @@ const MENU_IDS = {
 
 let signingIn;
 let posting;
+let chatting;
+let chatController;
+let authGeneration = 0;
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.feasonAuthToken?.oldValue && changes.feasonAuthToken.newValue !== changes.feasonAuthToken.oldValue) {
+    authGeneration++; chatController?.abort();
+  }
+});
+
+async function api(path, options = {}, publicRead = false) {
+  const { feasonAuthToken: token } = await chrome.storage.local.get('feasonAuthToken');
+  if (!token && !publicRead) throw Object.assign(new Error(errorMessage(401)), { status: 401 });
+  const response = await fetch(`${FEASON_ORIGIN}${path}`, {
+    ...options, credentials: 'omit', signal: options.signal || AbortSignal.timeout(25_000),
+    headers: { ...(!publicRead ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+  });
+  if (!publicRead && (await chrome.storage.local.get('feasonAuthToken')).feasonAuthToken !== token) throw new Error('Your account changed. Reopen Feason to continue.');
+  if (!response.ok) {
+    if (response.status === 401) await chrome.storage.local.remove('feasonAuthToken');
+    const payload = await response.json().catch(() => null);
+    throw Object.assign(new Error(errorMessage(response.status, payload)), { status: response.status });
+  }
+  return response;
+}
+
+async function jsonApi(path, options = {}, publicRead = false) {
+  return (await api(path, options, publicRead)).json();
+}
+
+async function askFeasy(message) {
+  const query = studyQuestion(message.question, message.selection);
+  const generation = authGeneration;
+  chatController = new AbortController();
+  const state = { status: 'pending', query, text: '', passages: [], threadId: '', verification: null };
+  await chrome.storage.session.set({ feasonChatState: state });
+  try {
+    const response = await api('/api/razon/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.any([chatController.signal, AbortSignal.timeout(180_000)]),
+      body: JSON.stringify({ query, ...(typeof message.threadId === 'string' && message.threadId ? { thread_id: message.threadId } : {}) }),
+    });
+    if (!response.body) throw new Error('Feasy did not return an answer.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', done = false;
+    while (true) {
+      const chunk = await reader.read();
+      buffer += decoder.decode(chunk.value || new Uint8Array(), { stream: !chunk.done });
+      const parsed = feasyEventLines(buffer, chunk.done);
+      buffer = parsed.remainder;
+      for (const event of parsed.events) {
+        if (event.type === 'text' && typeof event.delta === 'string') state.text += event.delta;
+        if (event.type === 'meta') state.threadId = typeof event.thread_id === 'string' ? event.thread_id : '';
+        if (event.type === 'sources' && Array.isArray(event.passages)) state.passages = event.passages;
+        if (event.type === 'verification') state.verification = event;
+        if (event.type === 'done') done = true;
+        if (event.type === 'error') throw new Error(typeof event.message === 'string' ? event.message : 'Feasy could not finish this answer.');
+      }
+      if (generation !== authGeneration) { await reader.cancel(); return { ok: false, error: 'Signed out.' }; }
+      await chrome.storage.session.set({ feasonChatState: { ...state } });
+      if (chunk.done) break;
+    }
+    if (!done || !state.text) throw new Error('Feasy’s answer was interrupted. Please try again when you are ready.');
+    state.status = 'success';
+    await chrome.storage.session.set({ feasonChatState: state });
+    return { ok: true };
+  } catch (error) {
+    if (generation === authGeneration) await chrome.storage.session.set({ feasonChatState: { ...state, status: 'error', error: error.message || 'Feasy is unavailable. Try again.' } });
+    return { ok: false, error: error.message || 'Feasy is unavailable. Try again.' };
+  } finally { chatController = undefined; }
+}
 
 async function openComposer() {
   try {
@@ -67,6 +138,15 @@ async function postGleam(draft) {
     feasonPostState: { status: 'pending', category: payload.category, startedAt: Date.now() },
   });
   try {
+    if (payload.category === 'resource' && draft.image) {
+      const image = imageData(draft.image);
+      if (!image || image.bytes.byteLength > 5 * 1024 * 1024) throw new Error('Unsupported image');
+      const form = new FormData();
+      form.append('image', new Blob([image.bytes], { type: image.type }), `gleam.${image.type.split('/')[1]}`);
+      const uploaded = await jsonApi('/api/gleams/upload', { method: 'POST', body: form });
+      if (typeof uploaded.url !== 'string' || !uploaded.url.startsWith('https://')) throw new Error('Upload failed');
+      payload.image_url = uploaded.url;
+    }
     const response = await fetch(`${FEASON_ORIGIN}/api/gleams`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${feasonAuthToken}`, 'Content-Type': 'application/json' },
@@ -99,10 +179,23 @@ async function postGleam(draft) {
 // Restrict commands to our own composer. No content script or external page
 // can ask the worker to sign in, sign out, or publish.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL('popup.html')) return false;
+  if (sender.id !== chrome.runtime.id || ![chrome.runtime.getURL('popup.html'), chrome.runtime.getURL('popup.html?surface=sidepanel')].includes(sender.url)) return false;
   let task;
   if (message?.type === 'feason:status') {
-    task = Promise.resolve({ signingIn: Boolean(signingIn), posting: Boolean(posting) });
+    task = Promise.resolve({ signingIn: Boolean(signingIn), posting: Boolean(posting), chatting: Boolean(chatting) });
+  } else if (message?.type === 'feason:ask') {
+    chatting ??= askFeasy(message).finally(() => { chatting = undefined; });
+    task = chatting;
+  } else if (message?.type === 'feason:passage') {
+    task = jsonApi(`/api/extension/passage?reference=${encodeURIComponent(String(message.reference || '').slice(0, 120))}`, {}, true).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:word') {
+    task = jsonApi(`/api/extension/lexicon?term=${encodeURIComponent(String(message.term || '').slice(0, 100))}`).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:inbox-list') {
+    task = jsonApi(`/api/reading-inbox${message.cursor ? `?cursor=${encodeURIComponent(String(message.cursor).slice(0, 100))}` : ''}`).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:inbox-save') {
+    task = jsonApi('/api/reading-inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: message.item?.title, quote: message.item?.quote, url: message.item?.url }) }).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:inbox-delete') {
+    task = jsonApi('/api/reading-inbox', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: message.id }) }).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:sign-in') {
     signingIn ??= signIn().finally(() => { signingIn = undefined; });
     task = signingIn;
@@ -111,14 +204,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     task = posting;
   } else if (message?.type === 'feason:sign-out' && !signingIn && !posting) {
     task = (async () => {
+      authGeneration++;
+      chatController?.abort();
       await chrome.storage.local.remove('feasonAuthToken');
-      await chrome.storage.session.remove(['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState']);
+      await chrome.storage.session.remove(['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState', 'feasonChatState', 'feasonSelection', 'companionDraft']);
       return { ok: true };
     })();
   } else {
     return false;
   }
-  task.then(sendResponse, () => sendResponse({ ok: false, error: 'Couldn’t complete that action. Reopen Feason and try again.' }));
+  task.then(sendResponse, (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Couldn’t complete that action. Reopen Feason and try again.', status: error?.status }));
   return true;
 });
 
@@ -139,10 +234,25 @@ chrome.runtime.onInstalled.addListener(() => {
       title: 'Post “%s” as a Gleam',
       contexts: ['selection'],
     });
+    for (const [id, title, contexts] of [
+      ['feason-ask', 'Ask Feasy about this…', ['selection']],
+      ['feason-verse', 'Look up this Bible reference…', ['selection']],
+      ['feason-word', 'Look up this biblical word…', ['selection']],
+      ['feason-inbox', 'Keep in your private reading inbox…', ['page', 'link', 'selection']],
+    ]) chrome.contextMenus.create({ id, title, contexts });
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const tool = { 'feason-ask': 'feasy', 'feason-verse': 'study', 'feason-word': 'lexicon', 'feason-inbox': 'inbox' }[String(info.menuItemId)];
+  if (tool) {
+    const context = draftFromContext(info, tab || {});
+    const selection = { tool, text: String(info.selectionText || '').slice(0, 4000), url: context.sourceUrl, title: context.sourceTitle, nonce: Date.now() };
+    // sidePanel.open must run in the context-menu gesture, before an await.
+    const opening = chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => openComposer()) || openComposer();
+    await Promise.all([chrome.storage.session.set({ feasonSelection: selection }), opening]);
+    return;
+  }
   if (!Object.values(MENU_IDS).includes(String(info.menuItemId))) return;
 
   await chrome.storage.session.set({

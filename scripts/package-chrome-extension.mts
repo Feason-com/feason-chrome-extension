@@ -25,6 +25,7 @@ const packageDirectory = mkdtempSync(join(tmpdir(), 'feason-chrome-extension-'))
 const files = [
   'auth.mjs',
   'background.mjs',
+  'books.json',
   'feason-logo.png',
   'popup.css',
   'popup.html',

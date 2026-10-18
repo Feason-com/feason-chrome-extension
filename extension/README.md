@@ -1,13 +1,45 @@
-# Feason — Post a Gleam
+# Feason — Study & Share
 
 A Manifest V3 Chrome extension that posts to Feason's existing Gleam API from
 the toolbar, the `Command/Ctrl + Shift + G` shortcut, or a page/link/selection
 context menu.
 
-Version 1.1 follows the iOS Gleam composer: Cormorant Garamond headings,
+Version 1.2 follows the iOS Gleam composer: Cormorant Garamond headings,
 EB Garamond writing, DM Sans controls, category-colored rooms, stained-glass
 capsules, and a dark writing pane. All fonts and their licenses are bundled;
 the popup makes no font requests to external services.
+
+## Study companion
+
+Choose **Keep open** for a persistent sidebar with Scripture, Ask Feasy, Inbox,
+Words, and Gleam. Context-menu selections prepare a tool; they never submit a
+question, save, or post automatically. Feasy uses the account’s existing
+allowance and sends a bounded excerpt with your question. Sources are the
+passages actually cited; grounding checks are shown without claiming infallibility.
+
+Scripture lookup uses the public-domain WEB translation. Word lookup is read-only
+and includes supplied provenance and occurrence links. Private inbox items sync
+to Feason’s website, including mobile browsers; they are not encrypted journal
+entries. The native iOS app is a design reference, not a new inbox client.
+
+Resource Gleams can include an image up to 5 MB. Images remain local until Post.
+All Gleam kinds can carry a verse anchor. Preview shows the exact text, source,
+image, and anchor before an explicit post. Session drafts also preserve these.
+
+```mermaid
+flowchart LR
+  User[Explicit user action] --> UI[Popup or side panel]
+  UI --> Worker[Extension worker]
+  Worker -->|Bearer credential| API[Feason services]
+  API --> Study[Scripture and word lookup]
+  API --> Private[Private account inbox and conversations]
+  API --> Gleam[Explicit image upload and Gleam post]
+```
+
+The client has no page content script or background browsing-history collection.
+The static client depends on Feason’s authenticated service; it does not run a
+standalone backend or an offline Scripture corpus. Real Chrome OAuth, side-panel
+permissions, and live account writes require installed-browser acceptance testing.
 
 ## Local installation
 
@@ -16,7 +48,7 @@ the popup makes no font requests to external services.
 2. Open `chrome://extensions`, enable **Developer mode**, and choose
    **Load unpacked**.
 3. Select this `extension` directory.
-4. Pin **Feason — Post a Gleam** and sign in from its popup.
+4. Pin **Feason — Study & Share** and sign in from its popup.
 
 The manifest's public key gives unpacked builds the stable extension ID
 `omkblpgeonilpgkdgieiingkigkhhfhn`. The server also accepts the original
@@ -56,7 +88,7 @@ upload:
    upload it:
 
    ```sh
-   npm run extension:package -- /tmp/feason-extension-1.1.0.zip
+   npm run extension:package -- /tmp/feason-extension-1.2.0.zip
    ```
 
 Store copy, permission justifications, privacy disclosure, and reviewer steps

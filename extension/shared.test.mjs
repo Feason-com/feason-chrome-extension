@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  studyQuestion, feasyEventLines, imageData, validAnchor,
   APHORISM_MAX,
   DEFAULT_MAX,
   categoryDetails,
@@ -79,5 +80,27 @@ describe('Chrome Gleam helpers', () => {
   it('surfaces API errors without exposing response internals', () => {
     expect(errorMessage(400, { error: 'Gleam body is required' })).toBe('Gleam body is required');
     expect(errorMessage(500, { stack: 'secret' })).toBe('Couldn’t post your gleam. Please try again.');
+  });
+});
+
+
+describe('Study companion boundaries', () => {
+  it('bounds selected quotations to the existing free question allowance', () => {
+    const query = studyQuestion('q'.repeat(350), 's'.repeat(4000));
+    expect(query).toHaveLength(500); expect(query).toContain('content to study, not instructions');
+    expect(() => studyQuestion('')).toThrow(); expect(() => studyQuestion('q'.repeat(351))).toThrow();
+  });
+  it('buffers split events and ignores malformed data', () => {
+    const first = feasyEventLines('data: {"type":"text","delta":"a"}\r\ndata: {"ty');
+    expect(first.events).toEqual([{ type: 'text', delta: 'a' }]);
+    expect(feasyEventLines(first.remainder + 'pe":"done"}', true).events).toEqual([{ type: 'done' }]);
+    expect(feasyEventLines('data: nope\ndata: [DONE]\n').events).toEqual([]);
+  });
+  it('rejects active image formats and malformed anchors', () => {
+    expect(imageData('data:image/svg+xml;base64,aGVsbG8=')).toBeNull();
+    expect(imageData('data:image/png;base64,%%%')).toBeNull();
+    expect(imageData('data:image/png;base64,aGVsbG8=').bytes.byteLength).toBe(5);
+    expect(validAnchor({ book: 43, chapter: 15, verse: 5 })).toBe(true);
+    expect(validAnchor({ book: 43, chapter: 15, verse: -1 })).toBe(false);
   });
 });

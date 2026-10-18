@@ -1,16 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Feason — Post a Gleam",
-  "short_name": "Post a Gleam",
-  "description": "Share a reflection, prayer, question, praise, or resource to Feason from any tab.",
-  "version": "1.1.0",
-  "homepage_url": "https://www.feason.com/",
+  "name": "Feason — Study & Share",
+  "short_name": "Feason",
+  "description": "Study Scripture, ask Feasy, keep a private reading inbox, explore biblical words, and share Gleams beside any page.",
+  "version": "1.2.0",
+  "homepage_url": "https://www.feason.com/chrome-extension",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA34EWxSjIkQWAvOFQLzISvQeRa/j1sI9xsXuI1aUzN2cQzRyPP+erF3oKzHqdHT58M34oqn54lsMzYvn+dChN5eZh96pWYLvvu//S9bxtBtfvnj3JtkQvLfs2RVDdzEAifjq9jMpvE/EfzLbvOIuOtM8xIdWXZloprrjZkylV/3QImrW4XqdcW925EGvvp3Y5tBSOR9GDZwuunc/s/RwNbFfu6el7tJIaEMcmX9hmrFSV08JaKgq8cjWtVxY7PEy1seB3kyNZC2yKp4ZCsOgYLiLHG+mCDsMLaK5FOBuhG8VR7Q59isnKreRe0IcLqn2mdYYq9U9idPRqhwE33Eut3wIDAQAB",
   "permissions": [
     "activeTab",
     "contextMenus",
     "identity",
+    "sidePanel",
     "storage"
   ],
   "host_permissions": [
@@ -20,8 +21,9 @@
     "service_worker": "background.mjs",
     "type": "module"
   },
+  "side_panel": { "default_path": "popup.html?surface=sidepanel" },
   "action": {
-    "default_title": "Post a Gleam",
+    "default_title": "Feason — Study & Share",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

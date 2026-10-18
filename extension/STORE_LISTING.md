@@ -1,71 +1,90 @@
-# Chrome Web Store listing
+# Chrome Web Store listing (prepared copy; submission is separate)
 
 ## Name
 
-Feason — Post a Gleam
+Feason — Study & Share
 
 ## Summary
 
-Share a reflection, prayer, question, praise, or resource to Feason from any tab.
+Keep Scripture, Feasy, biblical words, your private reading inbox, and the Gleam composer beside the page you’re reading.
 
 ## Detailed description
 
-Share what you are reading without leaving the page.
+Make a little room for Scripture in your browser.
 
-Feason — Post a Gleam lets signed-in Feason members post a reflection, prayer,
-question, praise, aphorism, or resource from the Chrome toolbar, a keyboard
-shortcut, or the page context menu.
+Open Feason’s persistent side panel to look up a Bible chapter or verse range,
+copy a passage, or attach its first verse to a Gleam. Select text and choose
+“Ask Feasy about this” to prepare a question. Nothing is sent to Feasy until you
+press Ask. Answers include the passages actually cited and a grounding-check
+status; read those passages in context, because Feasy can make mistakes.
 
-When you explicitly open or invoke the extension, it can attach the current
-page, a link, or selected text to your Gleam. The page URL stays separate from
-the Gleam text so you remain in control of what you post.
+Keep a page or quotation in your private Feason reading inbox, available on
+Feason’s desktop and mobile website. Explore biblical lemmas, transliterations,
+or Strong’s codes without automatically saving an entry or publishing a post.
 
-The extension does not monitor your browsing in the background.
+Compose reflections, prayers, questions, praise, resources, or aphorisms in a
+composer inspired by the iOS app. Add a verse anchor, attach an image to a
+Resource, and preview before posting. The worker preserves receipts and drafts
+across popup closure.
+
+The extension does not scan pages or monitor browsing in the background.
 
 ## Single purpose
 
-Let signed-in Feason members compose and post a Gleam from the current Chrome
-tab.
+Bring Feason’s Scripture study and thoughtful sharing tools into an explicitly
+invoked browser companion.
 
 ## URLs
 
-- Homepage: https://www.feason.com
+- Homepage: https://www.feason.com/chrome-extension
 - Privacy policy: https://www.feason.com/privacy
 - Support: https://www.feason.com/contact
 
 ## Permission justifications
 
-- `activeTab`: reads the current page URL and title only after the user opens or
-  explicitly invokes the extension, so the page can be offered as an optional
-  source for the Gleam.
-- `contextMenus`: provides explicit Post to Feason actions for a page, link, or
-  text selection.
-- `identity`: opens the Feason authorization flow and receives its callback
-  through Chrome Identity.
-- `storage`: stores the Feason authentication token and short-lived composer
-  state locally in Chrome.
-- `https://www.feason.com/*`: connects only to Feason to authenticate the member
-  and submit the Gleam they chose to post.
+- `activeTab`: reads the active tab’s URL and title after the member invokes the
+  extension, offering the page as an optional Gleam source or inbox item.
+- `contextMenus`: lets the member explicitly select a page, link, quotation,
+  reference, or word to prepare a Feason study or sharing action.
+- `identity`: opens Feason’s authorization flow and validates its callback.
+- `sidePanel`: keeps Feason’s study tools available beside the current page.
+- `storage`: stores the account credential locally; drafts, selected text,
+  image previews, and the current Feasy result remain in browser session storage.
+- `https://www.feason.com/*`: authenticates and connects to Feason’s existing
+  Scripture, word, conversation, private inbox, image-upload, and Gleam services.
+
+No content scripts, browsing-history permission, remote runtime code, third-party
+host permissions, or background page-content collection are used.
 
 ## Privacy disclosure
 
-The extension accesses the current page URL and title only when the user opens
-or invokes the extension. It accesses selected text only when the user chooses
-a Feason context-menu action. It sends only content the user chooses to post to
-https://www.feason.com. An authentication token is stored locally in Chrome
-storage to keep the user signed in. Feason does not sell extension data, use it
-for advertising, or collect browsing history in the background.
+The active page URL and title are read when the member opens or invokes the
+extension. Selected text is supplied by an explicit context-menu action and
+stays in session storage until the member asks Feasy, saves privately, or posts.
+Feasy receives a question and bounded selection excerpt under the account’s
+existing allowance. Feasy conversations and private inbox items are saved to
+the signed-in Feason account. Inbox items are private, not encrypted journal
+entries. Images upload only when the member posts a Resource. Sign-out clears
+local credentials and session drafts/context. Feason does not sell extension
+data, use it for advertising, or collect browsing history in the background.
 
 ## Reviewer instructions
 
-1. Open any ordinary HTTPS webpage.
-2. Select the Feason extension from the Chrome toolbar.
-3. Choose Sign in to Feason.
-4. Sign in with the reviewer account supplied privately in the dashboard.
-5. Enter a short Gleam and choose a category.
-6. Confirm the page source is displayed separately from the text field.
-7. Select Post Gleam.
-8. Follow the success link to view the published Gleam on Feason.
+Use a reviewer account supplied privately in the store dashboard. Do not place
+credentials in source code or public issues.
 
-The extension can also be invoked with Command+Shift+G on macOS,
-Ctrl+Shift+G on other platforms, or from the page context menu.
+1. Open an ordinary HTTPS page and invoke Feason from the toolbar; sign in.
+2. Choose Keep open to open the persistent side panel; switch between tabs.
+3. In Scripture, look up John 15:1–5, copy it, and anchor its first verse to a Gleam.
+4. Select a short quotation, right-click Ask Feasy, then explicitly press Ask.
+   Inspect the answer, cited passages, and grounding status.
+5. Save a page in Inbox; verify it at https://www.feason.com/reading-inbox and
+   remove the item. Saving must not publish a Gleam.
+6. Look up G3056 in Words; inspect source provenance and Scripture links.
+7. In Gleam, choose Resource, add a small PNG, preview, then explicitly post.
+   Follow the success link to verify the Gleam. Remove the reviewer post afterward.
+8. Close/reopen the popup with a draft, and verify sign-out clears session data.
+
+Command+Shift+G (macOS), Ctrl+Shift+G, and the context menu also open the extension.
+The download page currently offers a developer installation; a Web Store listing
+must be uploaded, reviewed, and verified separately.

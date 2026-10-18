@@ -3,14 +3,40 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Feason — New Gleam</title>
+    <title>Feason — Study & Share</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body data-category="reflection" data-view="loading">
     <main class="shell">
+      <header id="companionHeader" class="companion-header" hidden><div class="companion-brand"><img src="feason-logo.png" width="27" height="27" alt=""><span>Feason</span></div><button id="openPanelButton" class="text-button" type="button">Keep open ↗</button></header>
+      <nav id="toolNavigation" class="tool-navigation" aria-label="Feason tools" hidden>
+        <button type="button" data-tool="study">Scripture</button><button type="button" data-tool="feasy">Ask Feasy</button><button type="button" data-tool="inbox">Inbox</button><button type="button" data-tool="lexicon">Words</button><button type="button" data-tool="gleam">Gleam</button>
+      </nav>
+      <section id="workspace" class="workspace" hidden>
+        <div id="selectionCard" class="selection-card" hidden><p class="eyebrow">SELECTED FROM YOUR PAGE</p><p id="selectionText"></p><button id="clearSelectionButton" class="text-button" type="button">Clear selection</button></div>
+        <section id="studyTool" class="tool-panel" hidden>
+          <p class="eyebrow">ROOM TO READ</p><h1>Keep Scripture near.</h1><p class="tool-intro">Look up a verse, a passage, or a chapter.</p>
+          <form id="verseForm" class="tool-form"><label for="verseReference">Bible reference</label><div class="input-action"><input id="verseReference" maxlength="120" placeholder="John 15:1–5" required><button class="primary-button" type="submit">Look up</button></div></form>
+          <p id="verseStatus" class="message" role="status"></p><article id="verseResult" class="study-result" hidden><p class="eyebrow">WORLD ENGLISH BIBLE · PUBLIC DOMAIN</p><h2 id="verseTitle"></h2><div id="verseText"></div><div class="result-actions"><button id="copyVerseButton" class="secondary-button" type="button">Copy passage</button><button id="anchorVerseButton" class="secondary-button" type="button">Anchor first verse in a Gleam</button><button id="readChapterButton" class="text-button" type="button">Read the chapter ↗</button></div></article>
+        </section>
+        <section id="feasyTool" class="tool-panel" hidden>
+          <p class="eyebrow">THINK WITH SCRIPTURE</p><h1>Ask Feasy.</h1><p class="tool-intro">Explore a question with Scripture kept in view. Selected text is sent only when you ask.</p>
+          <form id="feasyForm" class="tool-form"><label for="feasyQuestion">Your question</label><textarea id="feasyQuestion" maxlength="350" rows="3" placeholder="How does this relate to Scripture?" required></textarea><p id="feasyContextNote" class="field-note"></p><button id="askFeasyButton" class="primary-button" type="submit">Ask Feasy →</button></form>
+          <p id="feasyStatus" class="message" role="status"></p><article id="feasyResult" class="study-result" hidden><div id="feasyAnswer"></div><div id="feasySources" class="feasy-sources"></div><p id="feasyVerification" class="field-note"></p><div class="result-actions"><button id="continueFeasyButton" class="text-button" type="button">Continue on Feason ↗</button><button id="newQuestionButton" class="text-button" type="button">New conversation</button></div></article>
+        </section>
+        <section id="inboxTool" class="tool-panel" hidden>
+          <p class="eyebrow">PRIVATE · ONLY FOR YOU</p><h1>Worth returning to.</h1><p class="tool-intro">Keep a page or quotation in your Feason reading inbox. Saving never posts a Gleam.</p>
+          <form id="inboxForm" class="tool-form"><label for="inboxTitle">Title</label><input id="inboxTitle" maxlength="200" placeholder="A page worth keeping"><label for="inboxUrl">Page URL</label><input id="inboxUrl" type="url" maxlength="2048" required placeholder="https://…"><label for="inboxQuote">Quotation or note (optional)</label><textarea id="inboxQuote" maxlength="4000" rows="3" placeholder="What would you like to return to?"></textarea><button id="saveInboxButton" class="primary-button" type="submit">Save privately</button></form>
+          <p id="inboxStatus" class="message" role="status"></p><div class="inbox-heading"><h2>Your reading inbox</h2><button id="refreshInboxButton" class="text-button" type="button">Refresh</button></div><div id="inboxItems"></div><button id="moreInboxButton" class="secondary-button" type="button" hidden>Load earlier items</button><button id="openInboxButton" class="text-button" type="button">Open your inbox on Feason ↗</button>
+        </section>
+        <section id="lexiconTool" class="tool-panel" hidden>
+          <p class="eyebrow">WORDS IN THEIR CONTEXT</p><h1>Look a little closer.</h1><p class="tool-intro">Explore a biblical lemma, transliteration, or Strong’s code without saving or publishing anything.</p>
+          <form id="wordForm" class="tool-form"><label for="wordTerm">Biblical word</label><div class="input-action"><input id="wordTerm" maxlength="100" placeholder="λόγος, logos, or G3056" required><button class="primary-button" type="submit">Look up</button></div></form><p id="wordStatus" class="message" role="status"></p><div id="wordResults"></div><p id="wordCaveat" class="field-note"></p><button id="openLexiconButton" class="text-button" type="button">Open your Lexicon ↗</button>
+        </section>
+      </section>
       <section id="loadingView" class="loading" aria-label="Opening Feason" role="status">
         <img src="feason-logo.png" width="56" height="56" alt="">
-        <h1>Feason</h1><p>Opening your composer…</p>
+        <h1>Feason</h1><p>Opening a little room to study…</p>
       </section>
       <section id="signInView" class="sign-in" hidden>
         <header class="brand"><img src="feason-logo.png" width="32" height="32" alt=""><span>Feason</span></header>
@@ -45,11 +71,13 @@
             <div class="source-copy"><strong id="sourceTitle">Attached page</strong><span id="sourceDomain"></span></div>
             <button id="removeSourceButton" class="icon-button" type="button" aria-label="Remove attached page">×</button>
           </div>
+          <div id="imageControls" class="composer-extras" hidden><label class="image-picker secondary-button" for="imageInput">Add an image<input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><div id="imagePreview" hidden><img id="gleamImage" alt="Image attached to your Gleam"><button id="removeImageButton" class="text-button" type="button">Remove image</button></div></div>
+          <div class="anchor-row"><span id="anchorLabel"></span><button id="chooseAnchorButton" class="text-button" type="button">Anchor a verse →</button><button id="removeAnchorButton" class="text-button" type="button" hidden>Remove anchor</button></div>
           <div class="caesura" aria-hidden="true"></div>
         </section>
         <div class="compose-footer">
           <span id="characterCount">0 / 2,026</span>
-          <button id="openFeasonButton" class="text-button" type="button">OPEN FEASON <span aria-hidden="true">↗</span></button>
+          <button id="previewButton" class="text-button" type="button">PREVIEW</button><button id="openFeasonButton" class="text-button" type="button">OPEN FEASON <span aria-hidden="true">↗</span></button>
         </div>
         <p id="limitMessage" class="message error" role="status"></p>
         <p id="statusMessage" class="message" role="status"></p>
@@ -64,6 +92,7 @@
         <button id="viewGleamButton" class="primary-button" type="button">View your Gleam <span aria-hidden="true">↗</span></button>
         <button id="anotherButton" class="secondary-button" type="button">Write another</button>
       </section>
+    <dialog id="previewDialog" class="preview-dialog"><p class="eyebrow" id="previewCategory"></p><h2>A little light, ready to share.</h2><p id="previewBody" class="preview-body"></p><p id="previewAttribution"></p><img id="previewImage" alt="Image to be shared" hidden><p id="previewAnchor" class="field-note"></p><button id="confirmPreviewButton" class="primary-button" type="button">Post Gleam</button><button id="closePreviewButton" class="secondary-button" type="button">Keep writing</button></dialog>
     </main>
     <script type="module" src="popup.mjs"></script>
   </body>
