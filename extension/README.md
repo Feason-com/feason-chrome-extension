@@ -1,13 +1,45 @@
-# Feason — Post a Gleam
+# Feason — Study & Share
 
 A Manifest V3 Chrome extension that posts to Feason's existing Gleam API from
 the toolbar, the `Command/Ctrl + Shift + G` shortcut, or a page/link/selection
 context menu.
 
-Version 1.1 follows the iOS Gleam composer: Cormorant Garamond headings,
+Version 1.3 follows the iOS Gleam composer: Cormorant Garamond headings,
 EB Garamond writing, DM Sans controls, category-colored rooms, stained-glass
 capsules, and a dark writing pane. All fonts and their licenses are bundled;
 the popup makes no font requests to external services.
+
+## Study companion
+
+Choose **Keep open** for a persistent sidebar with Today, Scripture, Ask Feasy, Library, Practice, Studies,
+Words, and Gleam. Context-menu selections prepare a tool; they never submit a
+question, save, or post automatically. Feasy uses the account’s existing
+allowance and sends a bounded excerpt with your question. Sources are the
+passages actually cited; grounding checks are shown without claiming infallibility.
+
+Scripture lookup uses the public-domain WEB translation. Word lookup is read-only
+and includes supplied provenance and occurrence links. Private inbox items sync
+to Feason’s website, including mobile browsers; they are not encrypted journal
+entries. The companion iOS update adds a native reading library and a private inbox destination in its existing share sheet.
+
+Resource Gleams can include an image up to 5 MB. Images remain local until Post.
+All Gleam kinds can carry a verse anchor. Preview shows the exact text, source,
+image, and anchor before an explicit post. Session drafts also preserve these.
+
+```mermaid
+flowchart LR
+  User[Explicit user action] --> UI[Popup or side panel]
+  UI --> Worker[Extension worker]
+  Worker -->|Bearer credential| API[Feason services]
+  API --> Study[Scripture and word lookup]
+  API --> Private[Private account inbox and conversations]
+  API --> Gleam[Explicit image upload and Gleam post]
+```
+
+The client has no page content script or background browsing-history collection.
+The static client depends on Feason’s authenticated service; it does not run a
+standalone backend. Explicit downloads cache up to 10 public WEB chapters and recordings (150 MB total). Real Chrome OAuth, side-panel
+permissions, and live account writes require installed-browser acceptance testing.
 
 ## Local installation
 
@@ -16,7 +48,7 @@ the popup makes no font requests to external services.
 2. Open `chrome://extensions`, enable **Developer mode**, and choose
    **Load unpacked**.
 3. Select this `extension` directory.
-4. Pin **Feason — Post a Gleam** and sign in from its popup.
+4. Pin **Feason — Study & Share** and sign in from its popup.
 
 The manifest's public key gives unpacked builds the stable extension ID
 `omkblpgeonilpgkdgieiingkigkhhfhn`. The server also accepts the original
@@ -56,7 +88,7 @@ upload:
    upload it:
 
    ```sh
-   npm run extension:package -- /tmp/feason-extension-1.1.0.zip
+   npm run extension:package -- /tmp/feason-extension-1.2.0.zip
    ```
 
 Store copy, permission justifications, privacy disclosure, and reviewer steps
@@ -83,3 +115,26 @@ modules, logos, or fonts. Real Chrome OAuth and live posting still require an
 installed extension and a signed-in Feason account.
 
 The extension is static and has no separate dependency install or compile step.
+
+## Your study library and daily practice
+
+Create private collections and add tags, annotations, and Scripture references to pages.
+Edits use revisions: a conflict preserves the draft and asks you to refresh. Deleting a
+collection keeps its saved pages and workspaces unfiled. Save workspaces with a passage,
+Feasy conversation, word terms, source link, and notes. Reopening reads the saved
+conversation; it never sends a new AI question automatically.
+
+Today loads the daily verse, reading resume, memorization summary, and active plans,
+with independent errors when one service is unavailable. Practice adds passages to
+the existing queue, checks recalled words locally, reveals text, and records explicit
+grades. Extension reviews mark achievements handled privately and do not post Gleams.
+
+Download selected full WEB chapters and their prerecorded narration from Feason.
+Playback supports 0.75–2× speed and saved positions. Public downloads survive sign-out;
+private session context, study exports, and playback positions clear. Removing a
+download removes its text and recording. No private mutation is queued offline.
+
+Studies exports Markdown or opens a print-ready local sheet for Print / Save PDF.
+Exports include source links and can add discussion questions; private notes require
+an explicit checkbox. The print view clears when the account changes. The Today tab
+contains a three-step guided onboarding that can be reopened anytime.
