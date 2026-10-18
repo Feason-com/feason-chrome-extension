@@ -1,10 +1,11 @@
 import { FEASON_ORIGIN, safeWebUrl } from "./shared.mjs";
-import { CACHE_NAME, checkRecall, studyMarkdown } from "./library.mjs";
+import { CACHE_NAME, checkRecall, studyMarkdown, sourceHref, sourcePageUrl, videoTimestamp } from "./library.mjs";
 
 export function initializeCompanion(ctx) {
   const $ = (id) => document.getElementById(id);
   const { command, node, openPath, setTool } = ctx;
   let draftWrites = Promise.resolve();
+  let captured = null, searchTimer, packIds = new Set(), captureGeneration = 0;
   let libraryLoad = Promise.resolve();
   let items = [],
     collections = [],
@@ -72,37 +73,32 @@ export function initializeCompanion(ctx) {
     $("inboxItems").replaceChildren();
     $("savedWorkspaces").replaceChildren();
     $("collectionItems").replaceChildren();
-    const pages = items.filter(
-      (i) =>
-        i.kind !== "workspace" &&
-        i.kind !== "collection" &&
-        (!$("libraryFilter").value ||
-          i.collectionId === $("libraryFilter").value) &&
-        `${i.title} ${i.quote || ""} ${i.note || ""} ${(i.tags || []).join(" ")}`
-          .toLowerCase()
-          .includes($("librarySearch").value.toLowerCase()),
-    );
+    const pages = items.filter(i => i.kind !== "collection");
     for (const item of pages) {
       const card = node("article", "", "inbox-item"),
-        url = safeWebUrl(item.url);
-      if (!url) continue;
-      const link = node("a", item.title);
-      link.href = url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      card.append(node("p", new URL(url).hostname, "eyebrow"), link);
+        url = sourceHref(item);
+      const choose = node("label", "", "check-label"), check = document.createElement("input");
+      check.type = "checkbox"; check.checked = packIds.has(item.id); check.disabled = !check.checked && packIds.size >= 10;
+      check.addEventListener("change", () => { if (check.checked) packIds.add(item.id); else packIds.delete(item.id); renderLibrary(); void persistDraft(); });
+      choose.append(check, document.createTextNode(" Include in Flock study pack")); card.append(choose);
+      const link = node(url ? "a" : "h2", item.title);
+      if (url) { link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer"; }
+      card.append(node("p", item.kind === "workspace" ? "STUDY WORKSPACE" : url ? new URL(url).hostname : "SAVED PAGE", "eyebrow"), link);
+      if (item.locator) card.append(node("p", "SAVED HIGHLIGHT · OPEN SOURCE TO RETURN", "field-note"));
+      if (item.mediaSeconds != null) card.append(node("p", `VIDEO MOMENT · ${videoTimestamp(item.mediaSeconds)}`, "field-note"));
       if (item.quote) card.append(node("blockquote", item.quote));
       if (item.note) card.append(node("p", item.note, "library-note"));
       if (item.tags?.length)
         card.append(node("p", item.tags.join(" · "), "field-note"));
       const actions = node("div", "", "library-actions");
       actions.append(
-        button("Edit notes & collection", () => editPage(item)),
+        button("Edit notes & collection", () => item.kind === "workspace" ? editWorkspace(item) : editPage(item)),
         button(
           "Remove",
           tryAction("inboxStatus", () => remove(item)),
         ),
       );
+      if (item.kind === "workspace") actions.append(button("Resume study", tryAction("inboxStatus", () => resume(item))));
       if (item.reference)
         actions.append(
           button(item.reference, () => ctx.lookup(item.reference)),
@@ -160,6 +156,8 @@ export function initializeCompanion(ctx) {
       $("collectionItems").append(row);
     }
     $("moreInboxButton").hidden = !cursor;
+    $("packSelection").textContent = `${packIds.size} / 10 sources selected for a Flock study pack.`;
+    $("preparePack").disabled = !packIds.size;
   }
   async function loadLibrary(earlier = false, latest = false) {
     const loadingEpoch = epoch;
@@ -174,13 +172,14 @@ export function initializeCompanion(ctx) {
       complete = resolve;
     });
     loading = true;
+    const query = $("librarySearch").value.trim(), collection = $("libraryFilter").value;
     message("inboxStatus", "Opening your private library…");
     try {
       const [data, folders] = await Promise.all([
-        command("inbox-list", { cursor: earlier ? cursor : null }),
+        command("inbox-list", { cursor: earlier ? cursor : null, query, collection }),
         command("collections"),
       ]);
-      if (loadingEpoch !== epoch) return;
+      if (loadingEpoch !== epoch || query !== $("librarySearch").value.trim() || collection !== $("libraryFilter").value) return;
       items = earlier
         ? [
             ...items,
@@ -206,6 +205,7 @@ export function initializeCompanion(ctx) {
     const result = await command("inbox-delete", { id: item.id });
     if (!result.deleted)
       throw new Error("This item was not removed. Refresh your library.");
+    packIds.delete(item.id);
     items = items.filter((i) => i.id !== item.id);
     collections = collections.filter((i) => i.id !== item.id);
     if (item.kind === "collection") {
@@ -216,6 +216,7 @@ export function initializeCompanion(ctx) {
     const data = {
       editing,
       editingWorkspace,
+      captured, packIds: [...packIds],
       note: $("inboxNote").value,
       reference: $("inboxReference").value,
       tags: $("inboxTags").value,
@@ -239,7 +240,9 @@ export function initializeCompanion(ctx) {
     await draftWrites;
   }
   function editPage(item) {
-    editing = item;
+    captureGeneration++; editing = item;
+    captured = { locator: item.locator, mediaSeconds: item.mediaSeconds, url: item.url };
+    captureDetails();
     setTool("inbox");
     for (const [id, value] of Object.entries({
       inboxTitle: item.title,
@@ -301,8 +304,11 @@ export function initializeCompanion(ctx) {
       "Study reopened. Scripture and Feasy are ready in their tabs.",
     );
   }
-  function startInboxContext() {
-    editing = null;
+  function captureDetails() {
+    $("captureDetails").textContent = [captured?.locator ? "Exact quotation saved with its surrounding context." : "", captured?.mediaSeconds != null ? `YouTube moment: ${videoTimestamp(captured.mediaSeconds)}. Open the saved source to resume here.` : ""].filter(Boolean).join(" ");
+  }
+  function startInboxContext(value = null) {
+    captureGeneration++; editing = null; captured = value; captureDetails();
     for (const id of [
       "inboxNote",
       "inboxReference",
@@ -325,6 +331,8 @@ export function initializeCompanion(ctx) {
       .map((t) => t.trim())
       .filter(Boolean),
     collectionId: $("inboxCollection").value || null,
+    locator: captured?.locator?.exact === $("inboxQuote").value.trim() && sourcePageUrl(captured.url || "") === sourcePageUrl($("inboxUrl").value) ? captured.locator : null,
+    mediaSeconds: captured?.mediaSeconds != null && sourcePageUrl(captured.url || "") === sourcePageUrl($("inboxUrl").value) ? captured.mediaSeconds : null,
   });
   $("useCurrentPageButton").addEventListener(
     "click",
@@ -410,8 +418,11 @@ export function initializeCompanion(ctx) {
       b.disabled = false;
     }
   });
-  $("libraryFilter").addEventListener("change", renderLibrary);
-  $("librarySearch").addEventListener("input", renderLibrary);
+  $("libraryFilter").addEventListener("change", () => { cursor = null; void loadLibrary(false, true); });
+  $("librarySearch").addEventListener("input", () => { clearTimeout(searchTimer); cursor = null; searchTimer = setTimeout(() => void loadLibrary(false, true), 300); });
+  $("librarySearchForm").addEventListener("submit", e => { e.preventDefault(); clearTimeout(searchTimer); cursor = null; void loadLibrary(false, true); });
+  $("preparePack").addEventListener("click", () => { if (packIds.size) openPath(`/reading-inbox/pack?items=${[...packIds].join(',')}`); });
+  $("clearPack").addEventListener("click", () => { packIds.clear(); renderLibrary(); void persistDraft(); });
   $("refreshInboxButton").addEventListener("click", () => void loadLibrary());
   $("moreInboxButton").addEventListener("click", () => void loadLibrary(true));
   $("workspaceForm").addEventListener("submit", async (e) => {
@@ -881,11 +892,43 @@ export function initializeCompanion(ctx) {
     await chrome.storage.session.set({ studyExport: exportText() });
     void chrome.tabs.create({ url: chrome.runtime.getURL("print.html") });
   });
-  const readingEpoch = epoch;
+  async function usePageCapture(video) {
+    const captureEpoch = epoch, page = await command("page", {action:"capture"});
+    if (captureEpoch !== epoch) return;
+    if (video && page.mediaSeconds == null) throw new Error("Open a YouTube video, begin playback, then keep this moment.");
+    if (!video && !page.locator) throw new Error("Select the text on the page first, then choose Keep selected text.");
+    startInboxContext({ ...page, mediaSeconds: video ? page.mediaSeconds : null });
+    $("inboxTitle").value = page.title; $("inboxUrl").value = page.url; $("inboxQuote").value = page.locator?.exact || "";
+    setTool("inbox"); await ctx.clearInboxDraft(); await persistDraft();
+    message("inboxStatus", "Add a note or collection, then choose Save privately.");
+  }
+  for (const [id, video] of [["captureHighlight", false], ["captureVideo", true]]) $(id).addEventListener("click", tryAction("pageStatus", () => usePageCapture(video)));
+  $("scanPage").addEventListener("click", tryAction("pageStatus", async () => {
+    const scanEpoch = epoch, b = $("scanPage"); if (b.disabled) return; b.disabled = true;
+    message("pageStatus", "Looking for Bible references in this page…");
+    try {
+      const data = await command("page", {action:"scan"}); if (epoch !== scanEpoch) return;
+      $("pageReferences").replaceChildren();
+      for (const entry of data.references) {
+        const card = node("article", "", "study-result");
+        card.append(node("h2", entry.reference), node("p", entry.context, "field-note"), button("Read passage", tryAction("pageStatus", () => ctx.lookup(entry.reference)), "secondary-button"));
+        $("pageReferences").append(card);
+      }
+      message("pageStatus", data.references.length ? `${data.references.length} reference${data.references.length === 1 ? '' : 's'} found in ${data.title || 'this page'}. Choose a passage to read.` : "No references found in the readable text. You can still look up a reference in Scripture.");
+    } finally { b.disabled = false; }
+  }));
+  $("restoreHighlights").addEventListener("click", tryAction("pageStatus", async () => {
+    const restoreEpoch = epoch, data = await command("page", {action:"restore"}); if (epoch !== restoreEpoch) return;
+    message("pageStatus", `${data.matched} of ${data.total} saved highlights found on this page. Unmatched or repeated quotations stay in your library; changed pages may need a source link.${data.limited ? " Showing the first 200 saved highlights from this page." : ""}`);
+  }));
+  $("clearHighlights").addEventListener("click", tryAction("pageStatus", async () => { await command("page", {action:"clear"}); message("pageStatus", "Page highlights cleared. Your saved library items are kept."); }));
+  const readingEpoch = epoch, readingCapture = captureGeneration;
   void chrome.storage.session.get("libraryDraft").then((data) => {
-    if (readingEpoch !== epoch) return;
+    if (readingEpoch !== epoch || readingCapture !== captureGeneration) return;
     const d = data.libraryDraft;
     if (!d) return;
+    captured = d.captured || null; captureDetails();
+    packIds = new Set((d.packIds || []).filter(id => /^[a-f0-9-]{36}$/i.test(id)).slice(0, 10));
     editing = d.editing;
     editingWorkspace = d.editingWorkspace;
     for (const [id, value] of Object.entries({
@@ -903,20 +946,25 @@ export function initializeCompanion(ctx) {
   });
   return {
     startInboxContext,
+    searchLibrary(query) { $("librarySearch").value = String(query).slice(0, 200); cursor = null; },
     flush() {
       return draftWrites;
     },
-    open(tool) {
+    open(tool, refreshLibrary = false) {
       if (tool === "today") void loadToday();
       if (tool === "practice") void loadReviews();
       if (tool === "inbox" || tool === "workspaces") {
-        void loadLibrary();
+        void loadLibrary(false, refreshLibrary);
         updateContext();
       }
       if (tool === "study") void downloads();
     },
     reset(preserveDraft = false) {
       epoch++;
+      clearTimeout(searchTimer); captureGeneration++;
+      if (!preserveDraft) { packIds.clear(); captured = null; }
+      $("librarySearch").value = ""; $("libraryFilter").value = "";
+      $("pageReferences").replaceChildren(); $("pageStatus").textContent = ""; captureDetails();
       loading = false;
       reviews = [];
       items = [];

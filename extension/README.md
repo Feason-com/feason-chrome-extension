@@ -4,7 +4,7 @@ A Manifest V3 Chrome extension that posts to Feason's existing Gleam API from
 the toolbar, the `Command/Ctrl + Shift + G` shortcut, or a page/link/selection
 context menu.
 
-Version 1.3 follows the iOS Gleam composer: Cormorant Garamond headings,
+Version 1.4 follows the iOS Gleam composer: Cormorant Garamond headings,
 EB Garamond writing, DM Sans controls, category-colored rooms, stained-glass
 capsules, and a dark writing pane. All fonts and their licenses are bundled;
 the popup makes no font requests to external services.
@@ -36,7 +36,7 @@ flowchart LR
   API --> Gleam[Explicit image upload and Gleam post]
 ```
 
-The client has no page content script or background browsing-history collection.
+The client has no automatically running page content script or background browsing-history collection. The scripting permission is used only after an explicit page action: scan references locally, capture a selected quotation/video time, or restore saved highlights. Chrome may require reopening the toolbar or context menu to grant active-page access.
 The static client depends on Feason’s authenticated service; it does not run a
 standalone backend. Explicit downloads cache up to 10 public WEB chapters and recordings (150 MB total). Real Chrome OAuth, side-panel
 permissions, and live account writes require installed-browser acceptance testing.
@@ -88,7 +88,7 @@ upload:
    upload it:
 
    ```sh
-   npm run extension:package -- /tmp/feason-extension-1.2.0.zip
+   npm run extension:package -- /tmp/feason-extension-1.4.0.zip
    ```
 
 Store copy, permission justifications, privacy disclosure, and reviewer steps
@@ -138,3 +138,17 @@ Studies exports Markdown or opens a print-ready local sheet for Print / Save PDF
 Exports include source links and can add discussion questions; private notes require
 an explicit checkbox. The print view clears when the account changes. The Today tab
 contains a three-step guided onboarding that can be reopened anytime.
+
+
+## Reading tools in 1.4
+
+- **This page**: scan up to 100,000 characters of readable text locally for up to 30 Bible references. References are checked against the reader catalog and actual WEB chapter/verse endpoints before offering Scripture lookup.
+- **Highlights**: select text, capture it, add a private note, then explicitly save. The source opens with a text fragment. Choose Show my saved highlights to restore matched quotations on the active page. Ambiguous matches are skipped; page changes can prevent a match.
+- **Video notes**: on a YouTube watch, live, or Shorts page, start the video and capture its current time. Save a note; its source link includes the timestamp.
+- **Search**: search the whole owned library (including quotations, annotations, tags, references, words, and workspaces), with collection filters and stable pagination.
+- **Address bar**: enter `feason`, Tab, then a passage, `word agape`, or `find hope`. Suggestions are local; private queries run only after acceptance. Command/Ctrl+Shift+K opens This page (Chrome shortcut conflicts may require reassignment).
+- **Flock packs**: select up to ten sources in Library and prepare on Feason. Notes begin excluded. Rebuild/edit the draft, choose one of your Flocks, review, then explicitly Post using Feason’s existing composer. No public Gleam is created by this flow.
+
+Database activation is a separate manual server release step. Source and UI checks do not establish installed-Chrome OAuth, production library writes, or Chrome Web Store publication.
+
+Reference endpoint counts and omitted verse numbers in `books.json` were extracted on 2026-10-18 from the [Bolls WEB bulk translation](https://bolls.life/static/translations/WEB.json), restricted to Feason’s existing reader catalog. See the [provider’s bulk-download documentation](https://github.com/Bolls-Bible/bain/blob/master/docs/API.md#get-a-full-translation). Only numeric facts are bundled; page scans make no provider calls. A zero count marks a catalog chapter unavailable in that WEB dataset.

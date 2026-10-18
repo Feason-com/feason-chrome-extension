@@ -158,7 +158,7 @@ a { color:var(--edge); text-underline-offset:3px; }
 .preview-body { font:21px/1.5 "EB Garamond",serif; white-space:pre-wrap; overflow-wrap:anywhere; }
 .preview-dialog > button { display:block; width:100%; margin-top:14px; }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
-.tool-navigation { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.tool-navigation { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
 select { width:100%; min-height:42px; border:1px solid rgb(251 249 244 / 22%); border-radius:10px; padding:10px; background:#142524; color:var(--paper); font:12px "DM Sans",sans-serif; margin:5px 0 12px; }
 summary { cursor:pointer; padding:6px 0; color:var(--edge); }
 details[open] > summary { margin-bottom:16px; }
@@ -179,3 +179,11 @@ body[data-tool="today"] { --ground:#0e1d23; --card-top:#1b3038; --card-bottom:#1
 
 .library-note { white-space:pre-wrap; }
 #librarySearch { width:100%; margin:8px 0 18px; padding:12px; background:#0c1620; color:var(--paper); border:1px solid #fff3; border-radius:10px; }
+
+/* Page tools share the companion's existing stained-glass controls. */
+.page-tool-actions { display:grid; gap:10px; margin:22px 0 16px; }
+.page-tool-actions button { width:100%; min-height:44px; }
+#librarySearchForm { margin-top:24px; }
+#pageReferences .study-result h2 { margin-top:0; }
+.inbox-item .check-label { font:11px/1.5 'DM Sans',sans-serif; color:var(--paper-muted); }
+.inbox-item .check-label input { width:auto; min-width:18px; min-height:18px; }
