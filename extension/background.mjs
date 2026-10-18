@@ -13,6 +13,7 @@ let posting;
 let chatting;
 let chatController;
 let authGeneration = 0;
+let verifiedToken = '', verifiedOwner = '', identityRequest;
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.feasonAuthToken?.oldValue && changes.feasonAuthToken.newValue !== changes.feasonAuthToken.oldValue) {
@@ -25,6 +26,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 async function api(path, options = {}, publicRead = false) {
   const { feasonAuthToken: token } = await chrome.storage.local.get('feasonAuthToken');
   if (!token && !publicRead) throw Object.assign(new Error(errorMessage(401)), { status: 401 });
+  if (!publicRead) await ensureAccount(token);
   const response = await fetch(`${FEASON_ORIGIN}${path}`, {
     ...options, credentials: 'omit', signal: options.signal || AbortSignal.timeout(25_000),
     headers: { ...(!publicRead ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
@@ -38,12 +40,40 @@ async function api(path, options = {}, publicRead = false) {
   return response;
 }
 
-function tokenSubject(token) {
-  try { const payload = JSON.parse(atob(String(token).split('.')[1].replaceAll('-', '+').replaceAll('_', '/'))); return typeof payload.sub === 'string' ? payload.sub : null; } catch { return null; }
+async function accountOwner(token) {
+  if (token === verifiedToken && verifiedOwner) return verifiedOwner;
+  if (identityRequest?.token === token) return identityRequest.promise;
+  const promise = (async () => {
+    const response = await fetch(`${FEASON_ORIGIN}/api/extension/account`, {
+      credentials: 'omit', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw Object.assign(new Error(response.status === 401 ? errorMessage(401) : 'Could not verify your Feason account. Please try again.'), { status: response.status });
+    const data = await response.json();
+    if (typeof data.id !== 'string' || !data.id || data.id.length > 128) throw new Error('Could not verify your Feason account.');
+    verifiedToken = token; verifiedOwner = data.id;
+    return data.id;
+  })();
+  identityRequest = { token, promise };
+  try { return await promise; } finally { if (identityRequest?.promise === promise) identityRequest = undefined; }
+}
+async function ensureAccount(token) {
+  let owner;
+  try { owner = await accountOwner(token); }
+  catch (error) { if (error.status === 401) await expireCredential(token); throw error; }
+  const current = await chrome.storage.local.get(['feasonAuthToken', 'feasonDraftOwner']);
+  if (current.feasonAuthToken !== token) throw new Error('Your account changed. Reopen Feason to continue.');
+  if (current.feasonDraftOwner && current.feasonDraftOwner !== owner) {
+    await chrome.storage.session.remove(privateSessionKeys);
+    await chrome.storage.session.set({ feasonAccountReset: Date.now() });
+  }
+  await chrome.storage.local.set({ feasonDraftOwner: owner });
 }
 async function expireCredential(token) {
-  const owner = tokenSubject(token);
-  if (owner) await chrome.storage.local.set({ feasonDraftOwner: owner });
+  const current = await chrome.storage.local.get(['feasonAuthToken', 'feasonDraftOwner']);
+  if (current.feasonAuthToken !== token) return;
+  // Opaque JWE credentials cannot be decoded in the browser. Fail closed for
+  // a legacy credential whose owner was never verified by the account endpoint.
+  if (!current.feasonDraftOwner) await chrome.storage.local.set({ feasonDraftOwner: 'unverified-previous-account' });
   await chrome.storage.local.remove('feasonAuthToken');
 }
 const privateSessionKeys = ['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState', 'feasonChatState', 'feasonSelection', 'companionDraft', 'libraryDraft', 'studyExport'];
@@ -149,7 +179,8 @@ async function signIn() {
     const result = await chrome.identity.launchWebAuthFlow({ url: start.toString(), interactive: true });
     const token = authTokenFromCallback(result, redirect, state);
     const previous = await chrome.storage.local.get(['feasonAuthToken', 'feasonDraftOwner']);
-    const owner = tokenSubject(token), previousOwner = previous.feasonDraftOwner || tokenSubject(previous.feasonAuthToken);
+    const owner = await accountOwner(token);
+    const previousOwner = previous.feasonDraftOwner || (previous.feasonAuthToken ? await accountOwner(previous.feasonAuthToken).catch(() => 'unverified-previous-account') : null);
     if (previousOwner && owner !== previousOwner) {
       await chrome.storage.session.remove(privateSessionKeys);
       await chrome.storage.session.set({ feasonAccountReset: Date.now() });
@@ -180,6 +211,7 @@ async function postGleam(draft) {
     feasonPostState: { status: 'pending', category: payload.category, startedAt: Date.now() },
   });
   try {
+    await ensureAccount(feasonAuthToken);
     if (payload.category === 'resource' && draft.image) {
       const image = imageData(draft.image);
       if (!image || image.bytes.byteLength > 5 * 1024 * 1024) throw new Error('Unsupported image');
@@ -211,10 +243,11 @@ async function postGleam(draft) {
       gleamDraft: null,
     });
     return { ok: true };
-  } catch {
-    const error = 'Couldn’t confirm your post. Open Feason to check your Gleams before posting again.';
-    await chrome.storage.session.set({ feasonPostState: { status: 'error', error } });
-    return { ok: false, error };
+  } catch (failure) {
+    const code = failure?.status;
+    const error = code === 401 ? errorMessage(401) : 'Couldn’t confirm your post. Open Feason to check your Gleams before posting again.';
+    await chrome.storage.session.set({ feasonPostState: { status: 'error', error, ...(code ? { code } : {}) } });
+    return { ok: false, error, ...(code ? { status: code } : {}) };
   }
 }
 

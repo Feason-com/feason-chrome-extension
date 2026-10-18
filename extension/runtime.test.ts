@@ -47,8 +47,9 @@ function harness() {
   };
   const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ id: 'synthetic-gleam' }), { status: 200 }));
   vi.stubGlobal('chrome', chrome);
-  vi.stubGlobal('fetch', fetchMock);
-  return { chrome, local, session, send, fetchMock, listeners };
+  const identityFetch = vi.fn<typeof fetch>(async () => Response.json({ id: 'synthetic-account' }));
+  vi.stubGlobal('fetch', (url: Parameters<typeof fetch>[0], options?: RequestInit) => String(url).endsWith('/api/extension/account') ? identityFetch(url, options) : fetchMock(url, options));
+  return { chrome, local, session, send, fetchMock, identityFetch, listeners };
 }
 
 const input = () => document.getElementById('body') as HTMLTextAreaElement;
@@ -412,14 +413,16 @@ it('passes only the library edit contract and clears library drafts and exports 
   expect(h.session.libraryDraft).toBeUndefined(); expect(h.session.studyExport).toBeUndefined(); expect(h.local.feasonPlayback).toBeUndefined();
 });
 
-it('clears another account’s drafts before exposing the new signed-in account', async () => {
+it('uses server-verified owners for opaque encrypted credentials before exposing another account', async () => {
   const h = harness();
-  const token = (sub: string) => `e30.${btoa(JSON.stringify({ sub }))}.signature`;
-  h.local.feasonAuthToken = token('account-a'); h.session.gleamDraft = { body: 'Account A private draft' }; h.session.libraryDraft = { note: 'Account A private note' };
+  h.local.feasonAuthToken = 'opaque.encrypted.account-a'; h.local.feasonDraftOwner = 'account-a';
+  h.session.gleamDraft = { body: 'Account A private draft' }; h.session.libraryDraft = { note: 'Account A private note' };
+  h.identityFetch.mockResolvedValueOnce(Response.json({ id: 'account-b' }));
   await import('./background.mjs');
-  h.chrome.identity.launchWebAuthFlow.mockImplementationOnce(async ({ url }) => `https://${extensionId}.chromiumapp.org/feason-auth?state=${new URL(url).searchParams.get('state')}&token=${token('account-b')}`);
+  h.chrome.identity.launchWebAuthFlow.mockImplementationOnce(async ({ url }) => `https://${extensionId}.chromiumapp.org/feason-auth?state=${new URL(url).searchParams.get('state')}&token=opaque.encrypted.account-b`);
   expect(await h.send({ type: 'feason:sign-in' })).toMatchObject({ ok: true });
   expect(h.session.gleamDraft).toBeUndefined(); expect(h.session.libraryDraft).toBeUndefined(); expect(h.local.feasonDraftOwner).toBe('account-b');
+  expect(h.identityFetch.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer opaque.encrypted.account-b' });
 });
 
 it('clears a removed conversation in the other open surface before the next question', async () => {
@@ -457,4 +460,12 @@ it('refreshes after an overlapping save and drops saved page defaults before ano
   expect(reads).toBe(2);
   expect(h.session.companionDraft).toMatchObject({ title: '', url: '', quote: '' });
   expect(h.session.libraryDraft).toMatchObject({ editing: null, note: '' });
+});
+
+it('refuses a private mutation if the encrypted credential cannot be verified', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'opaque.expired.credential'; h.local.feasonDraftOwner = 'synthetic-account';
+  h.identityFetch.mockResolvedValueOnce(Response.json({ error: 'Unauthorized' }, { status: 401 }));
+  await import('./background.mjs');
+  expect(await h.send({ type: 'feason:inbox-save', item: { title: 'A page', url: 'https://example.org/' } })).toMatchObject({ ok: false, status: 401 });
+  expect(h.fetchMock).not.toHaveBeenCalled(); expect(h.local.feasonAuthToken).toBeUndefined();
 });
