@@ -275,7 +275,9 @@ export function findPageReferences(text, books) {
   for (const match of String(text).slice(0, 100000).matchAll(pattern)) {
     const book = aliases.find(a => a.name.toLowerCase() === match[1].replace(/\s+/g, ' ').toLowerCase())?.book;
     const chapter = Number(match[2]), first = Number(match[3]), end = Number(match[4]);
-    if (!book || chapter < 1 || chapter > 150 || (match[3] && (first < 1 || first > 176)) || (match[4] && (end < first || end > 176))) continue;
+    const lastVerse = book?.verses?.[chapter - 1];
+    const available = verse => verse >= 1 && verse <= lastVerse && !book.omittedVerses?.[chapter]?.includes(verse);
+    if (!lastVerse || (match[3] && !available(first)) || (match[4] && (end < first || !available(end)))) continue;
     const reference = `${book.name} ${chapter}${match[3] ? ':' + first : ''}${match[4] ? '–' + end : ''}`;
     if (!found.has(reference)) found.set(reference, { reference, context: String(text).slice(Math.max(0, match.index - 45), match.index + match[0].length + 65).replace(/\s+/g, ' ').trim() });
     if (found.size >= 30) break;

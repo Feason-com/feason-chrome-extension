@@ -142,7 +142,7 @@ contains a three-step guided onboarding that can be reopened anytime.
 
 ## Reading tools in 1.4
 
-- **This page**: scan up to 100,000 characters of readable text locally for up to 30 Bible references. Open a reference in Scripture; unsupported references return the existing reader error.
+- **This page**: scan up to 100,000 characters of readable text locally for up to 30 Bible references. References are checked against the reader catalog and actual WEB chapter/verse endpoints before offering Scripture lookup.
 - **Highlights**: select text, capture it, add a private note, then explicitly save. The source opens with a text fragment. Choose Show my saved highlights to restore matched quotations on the active page. Ambiguous matches are skipped; page changes can prevent a match.
 - **Video notes**: on a YouTube watch, live, or Shorts page, start the video and capture its current time. Save a note; its source link includes the timestamp.
 - **Search**: search the whole owned library (including quotations, annotations, tags, references, words, and workspaces), with collection filters and stable pagination.
@@ -150,3 +150,5 @@ contains a three-step guided onboarding that can be reopened anytime.
 - **Flock packs**: select up to ten sources in Library and prepare on Feason. Notes begin excluded. Rebuild/edit the draft, choose one of your Flocks, review, then explicitly Post using Feason’s existing composer. No public Gleam is created by this flow.
 
 Database activation is a separate manual server release step. Source and UI checks do not establish installed-Chrome OAuth, production library writes, or Chrome Web Store publication.
+
+Reference endpoint counts and omitted verse numbers in `books.json` were extracted on 2026-10-18 from the [Bolls WEB bulk translation](https://bolls.life/static/translations/WEB.json), restricted to Feason’s existing reader catalog. See the [provider’s bulk-download documentation](https://github.com/Bolls-Bible/bain/blob/master/docs/API.md#get-a-full-translation). Only numeric facts are bundled; page scans make no provider calls. A zero count marks a catalog chapter unavailable in that WEB dataset.

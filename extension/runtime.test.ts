@@ -475,7 +475,7 @@ it('refuses a private mutation if the encrypted credential cannot be verified', 
 
 it('scans references only after an explicit page command and does not upload the page body', async () => {
   const h = harness();
-  h.fetchMock.mockImplementation(async url => String(url).endsWith('/books.json') ? Response.json([{number:43,name:'John'},{number:62,name:'1 John'}]) : Response.json({items:[],nextCursor:null}));
+  h.fetchMock.mockImplementation(async url => String(url).endsWith('/books.json') ? Response.json(JSON.parse(readFileSync('extension/books.json', 'utf8'))) : Response.json({items:[],nextCursor:null}));
   await import('./background.mjs');
   expect(h.chrome.scripting.executeScript).not.toHaveBeenCalled();
   const result = await h.send({type:'feason:page',action:'scan'}) as {ok:boolean;data:{references:{reference:string}[]}};
@@ -515,7 +515,7 @@ it('searches unloaded library records and hands only selected item ids to the re
 });
 it('keeps address-bar suggestions local and performs the accepted lookup in a Feason surface', async () => {
   const h=harness();
-  h.fetchMock.mockImplementation(async ()=>Response.json([{number:43,name:'John'}]));
+  h.fetchMock.mockImplementation(async ()=>Response.json(JSON.parse(readFileSync('extension/books.json', 'utf8'))));
   await import('./background.mjs');
   const suggest=vi.fn(); h.chrome.omnibox.onInputChanged.addListener.mock.calls[0][0]('<unsafe>',suggest);
   expect(suggest.mock.calls[0][0][0].description).toContain('&lt;unsafe&gt;');
@@ -535,4 +535,27 @@ it('restores highlights without capturing an unrelated long selection', async ()
   await import('./background.mjs');
   expect(await h.send({type:'feason:page',action:'restore'})).toMatchObject({ok:true,data:{matched:0,total:0}});
   expect(h.chrome.scripting.executeScript.mock.calls[0][0].args[0]).toBe('source');
+});
+
+it('opens an accepted address-bar library search without replacing an unsaved edit or selection', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
+  const id = '11111111-1111-4111-8111-111111111111', collectionId = '22222222-2222-4222-8222-222222222222';
+  const item = {id, kind:'page', title:'My source', url:'https://example.org/study', quote:'Saved quotation', note:'Original note', tags:['faith'], reference:'John 15:5', collectionId, revision:2};
+  h.fetchMock.mockImplementation(async url => Response.json({items:String(url).includes('kind=collection') ? [{id:collectionId,kind:'collection',title:'My collection'}] : [item], nextCursor:null}));
+  h.session.feasonSelection = {tool:'feasy',text:'Keep this page context',url:'https://example.org/context'};
+  await import('./background.mjs'); await loadPopup();
+  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  await vi.waitFor(()=>expect(document.getElementById('inboxItems')!.textContent).toContain('My source'));
+  [...document.querySelectorAll<HTMLButtonElement>('#inboxItems button')].find(b=>b.textContent === 'Edit notes & collection')!.click();
+  const draft = {inboxTitle:'Edited title',inboxUrl:item.url,inboxQuote:'Edited quote',inboxNote:'Unsaved private note',inboxTags:'hope, faith',inboxReference:'John 15:9',inboxCollection:collectionId};
+  for (const [name,value] of Object.entries(draft)) { const field=document.getElementById(name) as HTMLInputElement; field.value=value; field.dispatchEvent(new Event('input')); }
+  await vi.waitFor(()=>expect(h.session.libraryDraft).toMatchObject({editing:{id,revision:2},note:draft.inboxNote}));
+  const savedDraft = structuredClone(h.session.libraryDraft);
+  await h.chrome.storage.session.set({feasonSelection:{tool:'inbox',query:'hope'}});
+  await vi.waitFor(()=>expect(h.fetchMock.mock.calls.some(([url])=>String(url).includes('q=hope'))).toBe(true));
+  for (const [name,value] of Object.entries(draft)) expect((document.getElementById(name) as HTMLInputElement).value).toBe(value);
+  expect(h.session.libraryDraft).toEqual(savedDraft);
+  expect(document.getElementById('selectionText')!.textContent).toBe('Keep this page context');
+  expect(document.getElementById('saveInboxButton')!.textContent).toBe('Save changes');
+  expect(document.body.dataset.tool).toBe('inbox');
 });

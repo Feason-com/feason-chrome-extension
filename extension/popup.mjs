@@ -304,13 +304,13 @@ elements.viewGleamButton.addEventListener('click', () => {
   chrome.tabs.create({ url: `${FEASON_ORIGIN}${path}` });
 });
 
-function setTool(name) {
+function setTool(name, refreshLibrary = false) {
   currentTool = ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
   document.body.dataset.tool = currentTool;
   for (const button of elements.toolNavigation.querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.tool === currentTool ? 'page' : 'false');
   for (const tool of ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
   setView(!signedIn ? 'sign-in' : currentTool === 'gleam' ? 'composer' : 'workspace');
-  if (signedIn) companion?.open(currentTool);
+  if (signedIn) companion?.open(currentTool, refreshLibrary);
 }
 
 function renderAttachments() {
@@ -331,6 +331,11 @@ function saveCompanionDraft() {
 }
 
 function applySelection(value) {
+  if (value?.tool === 'inbox' && typeof value.query === 'string') {
+    companion.searchLibrary(value.query);
+    setTool('inbox', true);
+    return;
+  }
   selection = value;
   elements.selectionCard.hidden = !value?.text;
   elements.selectionText.textContent = value?.text || '';
@@ -345,7 +350,6 @@ function applySelection(value) {
     elements.inboxUrl.value = safeWebUrl(value.url);
     elements.inboxQuote.value = String(value.text || '').slice(0, 4000);
   }
-  if (value.tool === 'inbox' && typeof value.query === 'string') companion.searchLibrary(value.query);
   setTool(value.tool);
   void saveCompanionDraft();
 }

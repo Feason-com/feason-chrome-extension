@@ -950,11 +950,11 @@ export function initializeCompanion(ctx) {
     flush() {
       return draftWrites;
     },
-    open(tool) {
+    open(tool, refreshLibrary = false) {
       if (tool === "today") void loadToday();
       if (tool === "practice") void loadReviews();
       if (tool === "inbox" || tool === "workspaces") {
-        void loadLibrary();
+        void loadLibrary(false, refreshLibrary);
         updateContext();
       }
       if (tool === "study") void downloads();

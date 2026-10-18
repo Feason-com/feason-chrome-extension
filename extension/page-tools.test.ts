@@ -15,6 +15,14 @@ it('bounds page scanning and accepts books from the full existing reader catalog
   expect(findPageReferences('Tobit 4:7', books)[0].reference).toBe('Tobit 4:7');
   expect(findPageReferences(' '.repeat(100000) + 'John 3:16', books)).toEqual([]);
 });
+it('checks actual WEB chapter and verse endpoints, including translation omissions', () => {
+  const invalid = 'John 100, Jude 20, John 3:100, John 3:16-100, Luke 17:36, Acts 8:37, Baruch 6:1, Psalms 151:1.';
+  expect(findPageReferences(invalid, books)).toEqual([]);
+  const valid = 'John 21:25, Jude 1:25, Psalms 119:176, Luke 17:35-37, Sirach 51:30, Tobit 14:15.';
+  expect(findPageReferences(valid, books).map((r: {reference: string}) => r.reference)).toEqual([
+    'John 21:25', 'Jude 1:25', 'Psalms 119:176', 'Luke 17:35–37', 'Sirach 51:30', 'Tobit 14:15',
+  ]);
+});
 it('routes accepted address-bar queries locally and escapes suggestion markup', () => {
   expect(omniboxDestination('John 15:5', books)).toEqual({ tool: 'study', text: 'John 15:5' });
   expect(omniboxDestination('word agape', books)).toEqual({ tool: 'lexicon', text: 'agape' });
