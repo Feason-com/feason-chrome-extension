@@ -4,16 +4,38 @@ A Manifest V3 Chrome extension that posts to Feason's existing Gleam API from
 the toolbar, the `Command/Ctrl + Shift + G` shortcut, or a page/link/selection
 context menu.
 
+Version 1.1 follows the iOS Gleam composer: Cormorant Garamond headings,
+EB Garamond writing, DM Sans controls, category-colored rooms, stained-glass
+capsules, and a dark writing pane. All fonts and their licenses are bundled;
+the popup makes no font requests to external services.
+
 ## Local installation
 
-1. Open `chrome://extensions`, enable **Developer mode**, and choose
+1. Use Chrome 116 or later. The extension connects to the existing Feason
+   authentication and Gleam endpoints at `https://www.feason.com`.
+2. Open `chrome://extensions`, enable **Developer mode**, and choose
    **Load unpacked**.
-2. Select this `extension` directory.
-3. Pin **Feason — Post a Gleam** and sign in from its popup.
+3. Select this `extension` directory.
+4. Pin **Feason — Post a Gleam** and sign in from its popup.
 
 The manifest's public key gives unpacked builds the stable extension ID
-`pmdfpoeningpholpemfjffidcibhchao`, which is the development ID accepted by
-the auth route. No private key or Feason credential is bundled.
+`omkblpgeonilpgkdgieiingkigkhhfhn`. The server also accepts the original
+unpacked ID, `pmdfpoeningpholpemfjffidcibhchao`. When updating an existing
+unpacked install, preserve its public key and reload the extension in Chrome.
+No private key or Feason credential is bundled.
+
+## Sign-in and drafts
+
+The background worker completes sign-in even when Chrome closes the toolbar
+popup. It validates the callback origin, path, and state before storing a token.
+Posting also runs in the worker; reopening the popup shows the saved receipt
+instead of offering the accepted Gleam again. Failed requests are never retried
+automatically.
+
+Unsent text, attribution, and the optional attached page stay in Chrome session
+storage when the popup closes. Sign-out clears this draft and the local token.
+Switching to a shorter category keeps the text and explains the limit. The
+attached page can be removed before posting. URL-only resource Gleams work.
 
 ## Chrome Web Store release
 
@@ -24,7 +46,7 @@ upload:
    key:
 
    ```sh
-   cd extension && zip -r /tmp/feason-extension-0.0.1.zip .
+   npm run extension:package -- --reserve-id /tmp/feason-extension-0.0.1.zip
    ```
 
 2. Upload it as a draft, then copy the public key shown in the listing's
@@ -34,22 +56,30 @@ upload:
    upload it:
 
    ```sh
-   cd extension && zip -r /tmp/feason-extension-1.0.0.zip .
+   npm run extension:package -- /tmp/feason-extension-1.1.0.zip
    ```
 
 Store copy, permission justifications, privacy disclosure, and reviewer steps
 live in `STORE_LISTING.md`.
 
-The server accepts exactly one configured `chromiumapp.org` callback. Do not
-replace it with a caller-provided redirect URL.
+The server accepts the two known unpacked identities and one optionally
+configured production identity. Each callback uses its allowlisted
+`chromiumapp.org` host. Never accept an arbitrary redirect URL.
 
 ## Verification
 
-From this repository's root:
+From this repository root (Node 24 or later):
 
 ```sh
-npm install
+npm ci
 npm test
 ```
+
+The tests exercise the actual popup and worker with synthetic Chrome APIs:
+callback validation, popup closure, posting, expired sign-ins, drafts, category
+limits, attribution, source removal, and sign-out. The packaging test unzips the
+release and follows every runtime import and asset reference to catch missing
+modules, logos, or fonts. Real Chrome OAuth and live posting still require an
+installed extension and a signed-in Feason account.
 
 The extension is static and has no separate dependency install or compile step.

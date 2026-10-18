@@ -3,66 +3,66 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Post a Gleam</title>
+    <title>Feason — New Gleam</title>
     <link rel="stylesheet" href="popup.css">
   </head>
-  <body data-category="reflection">
+  <body data-category="reflection" data-view="loading">
     <main class="shell">
-      <header class="masthead">
-        <div>
-          <p class="wordmark">FEASON</p>
-          <h1>New Gleam</h1>
-        </div>
-        <button id="accountButton" class="account-button" type="button" hidden>Sign out</button>
-      </header>
-
-      <section id="signInView" class="sign-in" hidden>
-        <div class="orb">
-          <img src="feason-logo.png" alt="Feason">
-        </div>
-        <p class="eyebrow">SHARE FROM ANYWHERE</p>
-        <h2>A thought worth carrying</h2>
-        <p>Sign in with your Feason account, then share this page without leaving the tab.</p>
-        <button id="signInButton" class="primary-button" type="button">Sign in to Feason</button>
-        <p id="signInError" class="message error" role="alert"></p>
+      <section id="loadingView" class="loading" aria-label="Opening Feason" role="status">
+        <img src="feason-logo.png" width="56" height="56" alt="">
+        <h1>Feason</h1><p>Opening your composer…</p>
       </section>
-
-      <form id="composer" class="composer" hidden>
-        <div id="categoryList" class="categories" role="listbox" aria-label="Gleam kind"></div>
-
-        <section class="writing-card">
-          <div class="card-heading">
-            <span id="kindLabel">GLEAM · REFLECTION</span>
-            <span id="characterCount">0 / 2026</span>
-          </div>
-          <textarea id="body" rows="8" maxlength="2026" placeholder="Share a reflection…" aria-label="Gleam text" required></textarea>
-          <div id="attributionRow" class="attribution" hidden>
-            <span aria-hidden="true">—</span>
-            <input id="attribution" type="text" maxlength="80" placeholder="Whose words? (optional)" aria-label="Aphorism attribution">
-          </div>
-        </section>
-
-        <div id="sourceCard" class="source-card" hidden>
-          <span class="source-icon" aria-hidden="true">↗</span>
-          <div>
-            <strong id="sourceTitle">Current page</strong>
-          </div>
+      <section id="signInView" class="sign-in" hidden>
+        <header class="brand"><img src="feason-logo.png" width="32" height="32" alt=""><span>Feason</span></header>
+        <div class="welcome-card">
+          <div class="orb"><img src="feason-logo.png" width="76" height="76" alt=""></div>
+          <p class="eyebrow">A LITTLE LIGHT, SHARED</p>
+          <h1>A thought worth<br>carrying.</h1>
+          <p class="welcome-copy">A reflection. A prayer. A question.<br>Bring what’s on your heart to the fellowship.</p>
+          <div class="caesura" aria-hidden="true"></div>
+          <button id="signInButton" class="primary-button" type="button">Sign in to Feason <span aria-hidden="true">↗</span></button>
+          <p id="signInError" class="message error" role="alert"></p>
+          <p class="welcome-note">Your Feason account, wherever you are.</p>
         </div>
-
+      </section>
+      <form id="composer" class="composer" hidden>
+        <div class="grabber" aria-hidden="true"></div>
+        <header class="compose-header">
+          <button id="cancelButton" class="quiet-button" type="button">Cancel</button>
+          <h1>New Gleam</h1>
+          <button id="postButton" class="primary-button post-button" type="submit" disabled><span class="post-label">Post</span></button>
+        </header>
+        <div id="categoryList" class="categories" role="radiogroup" aria-label="Gleam kind"></div>
+        <section class="writing-card" aria-label="Write your Gleam">
+          <label id="kindLabel" class="eyebrow" for="body">GLEAM · REFLECTION</label>
+          <textarea id="body" rows="7" maxlength="2026" placeholder="Share a reflection…" aria-label="Gleam text" aria-describedby="characterCount limitMessage" spellcheck="true"></textarea>
+          <div id="attributionRow" class="attribution" hidden>
+            <label for="attribution">WHOSE WORDS</label><span aria-hidden="true">—</span>
+            <input id="attribution" type="text" maxlength="80" placeholder="leave blank if your own" autocomplete="off">
+          </div>
+          <div id="sourceCard" class="source-card" hidden>
+            <svg class="source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 13 4-4m-6 6-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m4 2 2-2a4 4 0 0 0-6-6l-2 2" transform="translate(3 2)"></path></svg>
+            <div class="source-copy"><strong id="sourceTitle">Attached page</strong><span id="sourceDomain"></span></div>
+            <button id="removeSourceButton" class="icon-button" type="button" aria-label="Remove attached page">×</button>
+          </div>
+          <div class="caesura" aria-hidden="true"></div>
+        </section>
+        <div class="compose-footer">
+          <span id="characterCount">0 / 2,026</span>
+          <button id="openFeasonButton" class="text-button" type="button">OPEN FEASON <span aria-hidden="true">↗</span></button>
+        </div>
+        <p id="limitMessage" class="message error" role="status"></p>
         <p id="statusMessage" class="message" role="status"></p>
-        <button id="postButton" class="primary-button post-button" type="submit" disabled>
-          <span class="post-label">Post Gleam</span>
-          <span class="post-arrow" aria-hidden="true">→</span>
-        </button>
+        <div class="account-row"><span id="draftStatus">Only shared when you post.</span><button id="accountButton" class="text-button" type="button">Sign out</button></div>
       </form>
-
       <section id="successView" class="success" hidden>
-        <div class="success-mark" aria-hidden="true">✓</div>
+        <div class="success-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="m11 20 6 6 13-13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
         <p class="eyebrow">SHARED WITH THE FELLOWSHIP</p>
-        <h2 id="successTitle">Reflection posted.</h2>
-        <p>Your gleam is now part of the field.</p>
-        <button id="viewGleamButton" class="primary-button" type="button">View your gleam</button>
-        <button id="anotherButton" class="secondary-button" type="button">Post another</button>
+        <h1 id="successTitle" tabindex="-1">Reflection posted.</h1>
+        <p>A little light, carried further.</p>
+        <div class="caesura" aria-hidden="true"></div>
+        <button id="viewGleamButton" class="primary-button" type="button">View your Gleam <span aria-hidden="true">↗</span></button>
+        <button id="anotherButton" class="secondary-button" type="button">Write another</button>
       </section>
     </main>
     <script type="module" src="popup.mjs"></script>

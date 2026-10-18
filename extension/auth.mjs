@@ -10,3 +10,24 @@ export function extensionIdFromRedirect(redirectUrl) {
     return '';
   }
 }
+
+export function authTokenFromCallback(result, redirectUrl, state) {
+  const expected = new URL(redirectUrl);
+  let callback;
+  try {
+    callback = new URL(result);
+  } catch {
+    throw new Error('Feason did not finish signing in.');
+  }
+  if (!extensionIdFromRedirect(redirectUrl)
+    || callback.origin !== expected.origin
+    || callback.pathname !== expected.pathname
+    || callback.username || callback.password || callback.hash
+    || callback.searchParams.getAll('state').length !== 1
+    || callback.searchParams.get('state') !== state) {
+    throw new Error('Feason returned an invalid sign-in.');
+  }
+  const tokens = callback.searchParams.getAll('token');
+  if (tokens.length !== 1 || !tokens[0]) throw new Error('Feason did not return a sign-in token.');
+  return tokens[0];
+}
