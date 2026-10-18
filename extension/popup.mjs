@@ -271,7 +271,7 @@ function applyStorageChanges(changes, area) {
   }
   if (area === 'session' && changes.feasonAuthState) renderAuthState(changes.feasonAuthState.newValue);
   if (area === 'session' && changes.feasonPostState?.newValue) renderPostState(changes.feasonPostState.newValue);
-  if (area === 'session' && changes.feasonChatState?.newValue) renderChat(changes.feasonChatState.newValue);
+  if (area === 'session' && changes.feasonChatState) renderChat(changes.feasonChatState.newValue);
   if (area === 'session' && changes.feasonSelection) applySelection(changes.feasonSelection.newValue);
 }
 
@@ -340,6 +340,7 @@ function applySelection(value) {
   if (value.tool === 'lexicon') elements.wordTerm.value = String(value.text || '').slice(0, 100);
   if (value.tool === 'feasy' && !elements.feasyQuestion.value) elements.feasyQuestion.value = 'How does this relate to Scripture?';
   if (value.tool === 'inbox') {
+    companion.startInboxContext();
     elements.inboxTitle.value = String(value.title || '').slice(0, 200);
     elements.inboxUrl.value = safeWebUrl(value.url);
     elements.inboxQuote.value = String(value.text || '').slice(0, 4000);
@@ -518,7 +519,7 @@ elements.previewButton.addEventListener('click', () => {
 elements.closePreviewButton.addEventListener('click', () => elements.previewDialog.close());
 elements.confirmPreviewButton.addEventListener('click', () => { elements.previewDialog.close(); elements.composer.requestSubmit(); });
 
-companion = initializeCompanion({ command, node, openPath, setTool, passage: () => currentPassage, books: () => books, chat: () => currentChat, restoreChat: state => { renderChat(state); void chrome.storage.session.set({ feasonChatState: state }); }, lookup: async reference => { elements.verseReference.value = reference; setTool('study'); await lookupPassage(); } });
+companion = initializeCompanion({ command, node, openPath, setTool, clearInboxDraft: saveCompanionDraft, capturePage: async () => { const epoch = accountEpoch; const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); if (epoch !== accountEpoch) throw new Error('Your sign-in changed. Choose the page again.'); const url = safeWebUrl(tab?.url); if (!url) throw new Error('Open Feason from the toolbar or right-click the page to use it here.'); return { title: String(tab.title || '').slice(0, 200), url }; }, passage: () => currentPassage, books: () => books, chat: () => currentChat, restoreChat: state => { renderChat(state); void chrome.storage.session.set({ feasonChatState: state }); }, lookup: async reference => { elements.verseReference.value = reference; setTool('study'); await lookupPassage(); } });
 
 async function initialize() {
   renderCategories();

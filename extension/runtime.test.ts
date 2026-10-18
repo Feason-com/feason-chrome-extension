@@ -421,3 +421,40 @@ it('clears another account’s drafts before exposing the new signed-in account'
   expect(await h.send({ type: 'feason:sign-in' })).toMatchObject({ ok: true });
   expect(h.session.gleamDraft).toBeUndefined(); expect(h.session.libraryDraft).toBeUndefined(); expect(h.local.feasonDraftOwner).toBe('account-b');
 });
+
+it('clears a removed conversation in the other open surface before the next question', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
+  h.session.feasonChatState = { status: 'success', text: 'An old conversation', threadId: '11111111-1111-4111-8111-111111111111', passages: [] };
+  await import('./background.mjs'); await loadPopup();
+  await h.chrome.storage.session.remove('feasonChatState');
+  expect(document.getElementById('feasyAnswer')!.textContent).toBe('');
+  (document.querySelector('[data-tool="feasy"]') as HTMLButtonElement).click();
+  (document.getElementById('feasyQuestion') as HTMLTextAreaElement).value = 'A fresh question';
+  h.fetchMock.mockResolvedValueOnce(new Response('data: {"type":"text","delta":"Fresh answer"}\n\ndata: {"type":"done"}\n\n'));
+  document.getElementById('feasyForm')!.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() => expect(h.fetchMock).toHaveBeenCalled());
+  expect(JSON.parse((h.fetchMock.mock.calls[0][1] as RequestInit).body as string)).not.toHaveProperty('thread_id');
+});
+it('refreshes after an overlapping save and drops saved page defaults before another tab opens', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token'; let finish: (r: Response) => void = () => {}; let reads = 0;
+  const savedItem = { id: '33333333-3333-4333-8333-333333333333', kind: 'page', title: 'New saved page', url: 'https://example.org/new', quote: 'Keep this', note: '', reference: '', tags: [], revision: 1 };
+  h.fetchMock.mockImplementation(async (url, options) => {
+    if (options?.method === 'POST') return Response.json({ item: savedItem });
+    if (String(url).includes('kind=collection')) return Response.json({ items: [], nextCursor: null });
+    reads++;
+    if (reads === 1) return new Promise(resolve => { finish = resolve; });
+    return Response.json({ items: [savedItem], nextCursor: null });
+  });
+  await import('./background.mjs'); await loadPopup();
+  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(reads).toBe(1));
+  (document.getElementById('inboxTitle') as HTMLInputElement).value = savedItem.title;
+  (document.getElementById('inboxUrl') as HTMLInputElement).value = savedItem.url;
+  document.getElementById('inboxForm')!.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() => expect(h.fetchMock.mock.calls.some(c => c[1]?.method === 'POST')).toBe(true));
+  finish(Response.json({ items: [], nextCursor: null }));
+  await vi.waitFor(() => expect(document.getElementById('inboxItems')!.textContent).toContain(savedItem.title));
+  expect(reads).toBe(2);
+  expect(h.session.companionDraft).toMatchObject({ title: '', url: '', quote: '' });
+  expect(h.session.libraryDraft).toMatchObject({ editing: null, note: '' });
+});

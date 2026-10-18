@@ -5,6 +5,7 @@ export function initializeCompanion(ctx) {
   const $ = (id) => document.getElementById(id);
   const { command, node, openPath, setTool } = ctx;
   let draftWrites = Promise.resolve();
+  let libraryLoad = Promise.resolve();
   let items = [],
     collections = [],
     cursor = null,
@@ -54,9 +55,16 @@ export function initializeCompanion(ctx) {
         new Option(id === "libraryFilter" ? "All saved pages" : "Unfiled", ""),
       );
       for (const c of collections) select.append(new Option(c.title, c.id));
-      if (previous && !collections.some((c) => c.id === previous))
+      if (
+        id !== "libraryFilter" &&
+        previous &&
+        !collections.some((c) => c.id === previous)
+      )
         select.append(new Option("Earlier collection", previous));
-      select.value = previous;
+      select.value =
+        id === "libraryFilter" && !collections.some((c) => c.id === previous)
+          ? ""
+          : previous;
     }
   }
   function renderLibrary() {
@@ -153,9 +161,18 @@ export function initializeCompanion(ctx) {
     }
     $("moreInboxButton").hidden = !cursor;
   }
-  async function loadLibrary(earlier = false) {
-    if (loading) return;
+  async function loadLibrary(earlier = false, latest = false) {
     const loadingEpoch = epoch;
+    if (loading) {
+      if (!latest) return libraryLoad;
+      await libraryLoad;
+      if (epoch !== loadingEpoch) return;
+      return loadLibrary(false, true);
+    }
+    let complete;
+    libraryLoad = new Promise((resolve) => {
+      complete = resolve;
+    });
     loading = true;
     message("inboxStatus", "Opening your private library…");
     try {
@@ -181,6 +198,7 @@ export function initializeCompanion(ctx) {
       }
     } finally {
       if (loadingEpoch === epoch) loading = false;
+      complete();
     }
   }
   async function remove(item, ask = true) {
@@ -191,7 +209,7 @@ export function initializeCompanion(ctx) {
     items = items.filter((i) => i.id !== item.id);
     collections = collections.filter((i) => i.id !== item.id);
     if (item.kind === "collection") {
-      await loadLibrary();
+      await loadLibrary(false, true);
     } else renderLibrary();
   }
   async function persistDraft() {
@@ -283,40 +301,76 @@ export function initializeCompanion(ctx) {
       "Study reopened. Scripture and Feasy are ready in their tabs.",
     );
   }
+  function startInboxContext() {
+    editing = null;
+    for (const id of [
+      "inboxNote",
+      "inboxReference",
+      "inboxTags",
+      "inboxCollection",
+    ])
+      $(id).value = "";
+    $("saveInboxButton").textContent = "Save privately";
+    $("cancelInboxEdit").hidden = true;
+  }
+  const inboxValues = () => ({
+    kind: "page",
+    title: $("inboxTitle").value,
+    url: $("inboxUrl").value,
+    quote: $("inboxQuote").value,
+    note: $("inboxNote").value,
+    reference: $("inboxReference").value,
+    tags: $("inboxTags")
+      .value.split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+    collectionId: $("inboxCollection").value || null,
+  });
+  $("useCurrentPageButton").addEventListener(
+    "click",
+    tryAction("inboxStatus", async () => {
+      const page = await ctx.capturePage();
+      startInboxContext();
+      $("inboxTitle").value = page.title;
+      $("inboxUrl").value = page.url;
+      $("inboxQuote").value = "";
+      await ctx.clearInboxDraft();
+      await persistDraft();
+    }),
+  );
   $("inboxForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const b = $("saveInboxButton");
     if (b.disabled) return;
+    const submitted = inboxValues(),
+      item = { ...(editing || {}), ...submitted },
+      savingEpoch = epoch;
+    const fields = $("inboxForm").querySelectorAll("input, textarea, select");
     b.disabled = true;
+    fields.forEach((field) => {
+      field.disabled = true;
+    });
     try {
       await persistDraft();
-      const item = {
-        ...(editing || {}),
-        kind: "page",
-        title: $("inboxTitle").value,
-        url: $("inboxUrl").value,
-        quote: $("inboxQuote").value,
-        note: $("inboxNote").value,
-        reference: $("inboxReference").value,
-        tags: $("inboxTags")
-          .value.split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        collectionId: $("inboxCollection").value || null,
-      };
-      const result = await command(editing ? "inbox-edit" : "inbox-save", {
-        item,
-      });
-      editing = result.item;
-      $("saveInboxButton").textContent = "Save changes";
-      $("cancelInboxEdit").hidden = false;
-      await persistDraft();
-      await loadLibrary();
-      message("inboxStatus", "Saved privately to your Feason account.");
+      await command(item.id ? "inbox-edit" : "inbox-save", { item });
+      if (epoch !== savingEpoch) return;
+      if (JSON.stringify(inboxValues()) === JSON.stringify(submitted)) {
+        startInboxContext();
+        for (const id of ["inboxTitle", "inboxUrl", "inboxQuote"])
+          $(id).value = "";
+        await ctx.clearInboxDraft();
+        await persistDraft();
+      }
+      await loadLibrary(false, true);
+      if (epoch === savingEpoch)
+        message("inboxStatus", "Saved privately to your Feason account.");
     } catch (error) {
-      message("inboxStatus", error);
+      if (epoch === savingEpoch) message("inboxStatus", error);
     } finally {
       b.disabled = false;
+      fields.forEach((field) => {
+        field.disabled = false;
+      });
     }
   });
   $("cancelInboxEdit").addEventListener("click", () => {
@@ -349,7 +403,7 @@ export function initializeCompanion(ctx) {
       });
       $("collectionTitle").value = "";
       delete $("collectionForm").dataset.editing;
-      await loadLibrary();
+      await loadLibrary(false, true);
     } catch (error) {
       message("inboxStatus", error);
     } finally {
@@ -390,7 +444,7 @@ export function initializeCompanion(ctx) {
       );
       editingWorkspace = data.item;
       await persistDraft();
-      await loadLibrary();
+      await loadLibrary(false, true);
       updateContext();
       message(
         "workspaceStatus",
@@ -848,6 +902,7 @@ export function initializeCompanion(ctx) {
     }
   });
   return {
+    startInboxContext,
     flush() {
       return draftWrites;
     },
