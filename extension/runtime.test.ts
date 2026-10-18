@@ -390,3 +390,34 @@ it('shares edits between the popup and sidebar without retaining an accepted pos
   expect(input().value).toBe(''); expect(postButton().disabled).toBe(true);
   expect(h.fetchMock).toHaveBeenCalledOnce();
 });
+
+it('loads Today with partial service failures using read-only requests', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token'; await import('./background.mjs');
+  h.fetchMock.mockImplementation(async url => String(url).endsWith('/api/memorize/summary') ? Response.json({ error: 'Unavailable' }, { status: 503 }) : Response.json({ ref: 'John 15:5', text: 'I am the vine.' }));
+  expect(await h.send({ type: 'feason:today' })).toMatchObject({ ok: true, data: { verse: { ref: 'John 15:5' }, reviews: { error: 'Unavailable' } } });
+  expect(h.fetchMock.mock.calls).toHaveLength(5);
+  expect(h.fetchMock.mock.calls.every(c => !(c[1] as RequestInit).method)).toBe(true);
+});
+it('keeps practice private regardless of a caller-supplied achievement setting', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token'; await import('./background.mjs');
+  await h.send({ type: 'feason:practice-grade', id: '11111111-1111-4111-8111-111111111111', grade: 'good', publishAchievement: true });
+  expect(JSON.parse((h.fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({ grade: 'good', publishAchievement: false });
+});
+it('passes only the library edit contract and clears library drafts and exports on sign-out', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token'; await import('./background.mjs');
+  h.session.libraryDraft = { note: 'private' }; h.session.studyExport = 'Private export'; h.local.feasonPlayback = { position: 42 };
+  await h.send({ type: 'feason:inbox-edit', item: { id: 'id', revision: 2, kind: 'workspace', note: 'Edited', user_id: 'other', embedding: [1], encrypted_body: 'never' } });
+  expect(JSON.parse((h.fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({ id: 'id', revision: 2, kind: 'workspace', note: 'Edited' });
+  await h.send({ type: 'feason:sign-out' });
+  expect(h.session.libraryDraft).toBeUndefined(); expect(h.session.studyExport).toBeUndefined(); expect(h.local.feasonPlayback).toBeUndefined();
+});
+
+it('clears another account’s drafts before exposing the new signed-in account', async () => {
+  const h = harness();
+  const token = (sub: string) => `e30.${btoa(JSON.stringify({ sub }))}.signature`;
+  h.local.feasonAuthToken = token('account-a'); h.session.gleamDraft = { body: 'Account A private draft' }; h.session.libraryDraft = { note: 'Account A private note' };
+  await import('./background.mjs');
+  h.chrome.identity.launchWebAuthFlow.mockImplementationOnce(async ({ url }) => `https://${extensionId}.chromiumapp.org/feason-auth?state=${new URL(url).searchParams.get('state')}&token=${token('account-b')}`);
+  expect(await h.send({ type: 'feason:sign-in' })).toMatchObject({ ok: true });
+  expect(h.session.gleamDraft).toBeUndefined(); expect(h.session.libraryDraft).toBeUndefined(); expect(h.local.feasonDraftOwner).toBe('account-b');
+});

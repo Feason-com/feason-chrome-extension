@@ -1,0 +1,42 @@
+body {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 24px;
+  color: #f0e8d7;
+  background: #14221d;
+  font:
+    16px/1.6 Georgia,
+    serif;
+}
+button {
+  padding: 14px 20px;
+  border: 1px solid #b99c64;
+  border-radius: 12px;
+  background: #25372f;
+  color: #f0e8d7;
+  cursor: pointer;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  margin-top: 40px;
+}
+@media print {
+  body {
+    margin: 0;
+    max-width: none;
+    background: white;
+    color: black;
+    font-size: 11pt;
+  }
+  header {
+    display: none;
+  }
+  pre {
+    margin: 0;
+  }
+  @page {
+    margin: 2cm;
+  }
+}

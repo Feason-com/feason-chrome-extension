@@ -1,3 +1,4 @@
+import { initializeCompanion } from './companion.mjs';
 import {
   CATEGORIES, FEASON_ORIGIN, categoryDetails, categoryLimit, draftFromContext,
   gleamPayload, safeWebUrl, textLimitWithSource, studyQuestion, imageData,
@@ -13,7 +14,7 @@ const elements = Object.fromEntries([
   'studyTool', 'verseForm', 'verseReference', 'verseStatus', 'verseResult', 'verseTitle', 'verseText', 'copyVerseButton', 'anchorVerseButton', 'readChapterButton',
   'feasyTool', 'feasyForm', 'feasyQuestion', 'feasyContextNote', 'askFeasyButton', 'feasyStatus', 'feasyResult', 'feasyAnswer', 'feasySources', 'feasyVerification', 'continueFeasyButton', 'newQuestionButton',
   'inboxTool', 'inboxForm', 'inboxTitle', 'inboxUrl', 'inboxQuote', 'saveInboxButton', 'inboxStatus', 'inboxItems', 'refreshInboxButton', 'moreInboxButton', 'openInboxButton',
-  'lexiconTool', 'wordForm', 'wordTerm', 'wordStatus', 'wordResults', 'wordCaveat', 'openLexiconButton',
+  'todayTool', 'practiceTool', 'workspacesTool', 'lexiconTool', 'wordForm', 'wordTerm', 'wordStatus', 'wordResults', 'wordCaveat', 'openLexiconButton',
   'imageControls', 'imageInput', 'imagePreview', 'gleamImage', 'removeImageButton', 'anchorLabel', 'chooseAnchorButton', 'removeAnchorButton',
   'previewButton', 'previewDialog', 'previewCategory', 'previewBody', 'previewAttribution', 'previewImage', 'previewAnchor', 'confirmPreviewButton', 'closePreviewButton',
 ].map((id) => [id, document.getElementById(id)]));
@@ -35,8 +36,7 @@ let currentTool = 'gleam';
 let selection = null;
 let currentPassage = null;
 let currentChat = null;
-let inboxCursor = null;
-let inboxLoaded = false;
+let companion;
 let browserWindowId;
 let books = [];
 let booksLoading;
@@ -229,13 +229,13 @@ async function postAnother() {
 
 async function signOut() {
   elements.accountButton.disabled = true;
-  await Promise.all([draftWrites, companionWrites]);
+  await Promise.all([draftWrites, companionWrites, companion.flush()]);
   try {
     const result = await chrome.runtime.sendMessage({ type: 'feason:sign-out' });
     if (!result?.ok) throw new Error('Sign-out did not finish. Try again.');
     signedIn = false;
-    selection = null; currentChat = null; inboxItems = []; inboxCursor = null; inboxLoaded = false;
-    applySelection(null); renderChat(null); renderInbox();
+    selection = null; currentChat = null; companion.reset();
+    applySelection(null); renderChat(null);
     for (const input of [elements.feasyQuestion, elements.verseReference, elements.wordTerm, elements.inboxTitle, elements.inboxUrl, elements.inboxQuote]) input.value = '';
     renderDraft({});
     elements.statusMessage.textContent = '';
@@ -250,7 +250,7 @@ function applyStorageChanges(changes, area) {
   if (area === 'local' && changes.feasonAuthToken) {
     accountEpoch++;
     signedIn = Boolean(changes.feasonAuthToken.newValue);
-    inboxItems = []; inboxCursor = null; inboxLoaded = false; currentPassage = null;
+    companion.reset(true); currentPassage = null;
     elements.inboxItems.replaceChildren(); elements.wordResults.replaceChildren(); elements.verseResult.hidden = true;
     renderChat(null);
     if (signedIn) {
@@ -260,6 +260,10 @@ function applyStorageChanges(changes, area) {
       elements.body.focus();
     } else setView('sign-in');
     updateForm();
+  }
+  if (area === 'session' && changes.feasonAccountReset) {
+    companion.reset(); renderDraft({}); selection = null; currentPassage = null;
+    for (const input of [elements.feasyQuestion, elements.verseReference, elements.wordTerm, elements.inboxTitle, elements.inboxUrl, elements.inboxQuote]) input.value = '';
   }
   if (area === 'session' && !posting && changes.gleamDraft?.newValue?.editorId && changes.gleamDraft.newValue.editorId !== editorId) {
     renderDraft(changes.gleamDraft.newValue);
@@ -301,12 +305,12 @@ elements.viewGleamButton.addEventListener('click', () => {
 });
 
 function setTool(name) {
-  currentTool = ['study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
+  currentTool = ['today', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
   document.body.dataset.tool = currentTool;
   for (const button of elements.toolNavigation.querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.tool === currentTool ? 'page' : 'false');
-  for (const tool of ['study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
+  for (const tool of ['today', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
   setView(!signedIn ? 'sign-in' : currentTool === 'gleam' ? 'composer' : 'workspace');
-  if (signedIn && currentTool === 'inbox' && !inboxLoaded) void loadInbox();
+  if (signedIn) companion?.open(currentTool);
 }
 
 function renderAttachments() {
@@ -380,7 +384,7 @@ async function lookupPassage(event) {
       return paragraph;
     }));
     elements.verseResult.hidden = false;
-    elements.verseStatus.textContent = '';
+    elements.verseStatus.textContent = data.offline ? 'Reading your downloaded chapter offline.' : '';
     void saveCompanionDraft();
   } catch (error) { elements.verseStatus.textContent = error.message; }
   finally { button.disabled = false; }
@@ -426,57 +430,6 @@ async function askQuestion(event) {
   finally { elements.askFeasyButton.disabled = false; }
 }
 
-let inboxBusy = false;
-let inboxItems = [];
-function renderInbox() {
-  elements.inboxItems.replaceChildren();
-  if (!inboxItems.length) elements.inboxItems.append(node('p', 'Your saved pages will appear here.', 'field-note'));
-  for (const item of inboxItems) {
-    const card = node('article', '', 'inbox-item');
-    const url = safeWebUrl(item.url);
-    if (!url) continue;
-    const link = node('a', item.title); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    card.append(node('p', new URL(url).hostname, 'eyebrow'), link);
-    if (item.quote) card.append(node('blockquote', item.quote));
-    const remove = node('button', 'Remove', 'text-button'); remove.type = 'button';
-    remove.addEventListener('click', async () => {
-      if (inboxBusy) return;
-      remove.disabled = true;
-      try {
-        const deleted = await command('inbox-delete', { id: item.id });
-        if (!deleted.deleted) throw new Error('This item was not removed. Refresh your inbox.');
-        inboxItems = inboxItems.filter(entry => entry.id !== item.id); renderInbox();
-      } catch (error) { elements.inboxStatus.textContent = error.message; }
-      finally { remove.disabled = false; }
-    });
-    card.append(remove); elements.inboxItems.append(card);
-  }
-  elements.moreInboxButton.hidden = !inboxCursor;
-}
-async function loadInbox(earlier = false) {
-  if (inboxBusy) return;
-  inboxBusy = true; elements.refreshInboxButton.disabled = elements.moreInboxButton.disabled = true;
-  elements.inboxStatus.textContent = 'Opening your private inbox…';
-  try {
-    const data = await command('inbox-list', { cursor: earlier ? inboxCursor : null });
-    inboxItems = earlier ? [...inboxItems, ...data.items] : data.items;
-    inboxCursor = data.nextCursor; inboxLoaded = true; renderInbox();
-    elements.inboxStatus.textContent = '';
-  } catch (error) { elements.inboxStatus.textContent = error.message; }
-  finally { inboxBusy = false; elements.refreshInboxButton.disabled = elements.moreInboxButton.disabled = false; }
-}
-async function saveInbox(event) {
-  event.preventDefault();
-  if (elements.saveInboxButton.disabled) return;
-  elements.saveInboxButton.disabled = true;
-  try {
-    await saveCompanionDraft();
-    await command('inbox-save', { item: { title: elements.inboxTitle.value, url: elements.inboxUrl.value, quote: elements.inboxQuote.value } });
-    await loadInbox();
-    elements.inboxStatus.textContent = 'Saved privately to your Feason account.';
-  } catch (error) { elements.inboxStatus.textContent = error.message; }
-  finally { elements.saveInboxButton.disabled = false; }
-}
 async function lookupWord(event, term = elements.wordTerm.value) {
   event?.preventDefault();
   const button = elements.wordForm.querySelector('button'); button.disabled = true;
@@ -519,10 +472,10 @@ elements.openPanelButton.addEventListener('click', () => { void chrome.sidePanel
 elements.clearSelectionButton.addEventListener('click', () => { applySelection(null); void chrome.storage.session.remove('feasonSelection'); });
 elements.verseForm.addEventListener('submit', lookupPassage);
 elements.feasyForm.addEventListener('submit', askQuestion);
-elements.inboxForm.addEventListener('submit', saveInbox);
+
 elements.wordForm.addEventListener('submit', lookupWord);
-elements.refreshInboxButton.addEventListener('click', () => void loadInbox());
-elements.moreInboxButton.addEventListener('click', () => void loadInbox(true));
+
+
 elements.openInboxButton.addEventListener('click', () => openPath('/reading-inbox'));
 elements.openLexiconButton.addEventListener('click', () => openPath('/lexicon'));
 elements.continueFeasyButton.addEventListener('click', () => { if (currentChat?.threadId) openPath(`/intelligence?razon=${encodeURIComponent(currentChat.threadId)}`); });
@@ -564,6 +517,8 @@ elements.previewButton.addEventListener('click', () => {
 });
 elements.closePreviewButton.addEventListener('click', () => elements.previewDialog.close());
 elements.confirmPreviewButton.addEventListener('click', () => { elements.previewDialog.close(); elements.composer.requestSubmit(); });
+
+companion = initializeCompanion({ command, node, openPath, setTool, passage: () => currentPassage, books: () => books, chat: () => currentChat, restoreChat: state => { renderChat(state); void chrome.storage.session.set({ feasonChatState: state }); }, lookup: async reference => { elements.verseReference.value = reference; setTool('study'); await lookupPassage(); } });
 
 async function initialize() {
   renderCategories();

@@ -4,14 +4,14 @@ A Manifest V3 Chrome extension that posts to Feason's existing Gleam API from
 the toolbar, the `Command/Ctrl + Shift + G` shortcut, or a page/link/selection
 context menu.
 
-Version 1.2 follows the iOS Gleam composer: Cormorant Garamond headings,
+Version 1.3 follows the iOS Gleam composer: Cormorant Garamond headings,
 EB Garamond writing, DM Sans controls, category-colored rooms, stained-glass
 capsules, and a dark writing pane. All fonts and their licenses are bundled;
 the popup makes no font requests to external services.
 
 ## Study companion
 
-Choose **Keep open** for a persistent sidebar with Scripture, Ask Feasy, Inbox,
+Choose **Keep open** for a persistent sidebar with Today, Scripture, Ask Feasy, Library, Practice, Studies,
 Words, and Gleam. Context-menu selections prepare a tool; they never submit a
 question, save, or post automatically. Feasy uses the account’s existing
 allowance and sends a bounded excerpt with your question. Sources are the
@@ -20,7 +20,7 @@ passages actually cited; grounding checks are shown without claiming infallibili
 Scripture lookup uses the public-domain WEB translation. Word lookup is read-only
 and includes supplied provenance and occurrence links. Private inbox items sync
 to Feason’s website, including mobile browsers; they are not encrypted journal
-entries. The native iOS app is a design reference, not a new inbox client.
+entries. The companion iOS update adds a native reading library and a private inbox destination in its existing share sheet.
 
 Resource Gleams can include an image up to 5 MB. Images remain local until Post.
 All Gleam kinds can carry a verse anchor. Preview shows the exact text, source,
@@ -38,7 +38,7 @@ flowchart LR
 
 The client has no page content script or background browsing-history collection.
 The static client depends on Feason’s authenticated service; it does not run a
-standalone backend or an offline Scripture corpus. Real Chrome OAuth, side-panel
+standalone backend. Explicit downloads cache up to 10 public WEB chapters and recordings (150 MB total). Real Chrome OAuth, side-panel
 permissions, and live account writes require installed-browser acceptance testing.
 
 ## Local installation
@@ -115,3 +115,26 @@ modules, logos, or fonts. Real Chrome OAuth and live posting still require an
 installed extension and a signed-in Feason account.
 
 The extension is static and has no separate dependency install or compile step.
+
+## Your study library and daily practice
+
+Create private collections and add tags, annotations, and Scripture references to pages.
+Edits use revisions: a conflict preserves the draft and asks you to refresh. Deleting a
+collection keeps its saved pages and workspaces unfiled. Save workspaces with a passage,
+Feasy conversation, word terms, source link, and notes. Reopening reads the saved
+conversation; it never sends a new AI question automatically.
+
+Today loads the daily verse, reading resume, memorization summary, and active plans,
+with independent errors when one service is unavailable. Practice adds passages to
+the existing queue, checks recalled words locally, reveals text, and records explicit
+grades. Extension reviews mark achievements handled privately and do not post Gleams.
+
+Download selected full WEB chapters and their prerecorded narration from Feason.
+Playback supports 0.75–2× speed and saved positions. Public downloads survive sign-out;
+private session context, study exports, and playback positions clear. Removing a
+download removes its text and recording. No private mutation is queued offline.
+
+Studies exports Markdown or opens a print-ready local sheet for Print / Save PDF.
+Exports include source links and can add discussion questions; private notes require
+an explicit checkbox. The print view clears when the account changes. The Today tab
+contains a three-step guided onboarding that can be reopened anytime.

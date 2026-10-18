@@ -1,4 +1,5 @@
 import { FEASON_ORIGIN, draftFromContext, errorMessage, gleamPayload, studyQuestion, feasyEventLines, imageData } from './shared.mjs';
+import { createOfflineLibrary, libraryPayload } from './library.mjs';
 import { authTokenFromCallback, extensionIdFromRedirect } from './auth.mjs';
 
 const MENU_IDS = {
@@ -16,6 +17,8 @@ let authGeneration = 0;
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.feasonAuthToken?.oldValue && changes.feasonAuthToken.newValue !== changes.feasonAuthToken.oldValue) {
     authGeneration++; chatController?.abort();
+    void chrome.storage.session.remove(['feasonSelection', 'feasonChatState', 'studyExport']);
+    void chrome.storage.local.remove('feasonPlayback');
   }
 });
 
@@ -28,15 +31,47 @@ async function api(path, options = {}, publicRead = false) {
   });
   if (!publicRead && (await chrome.storage.local.get('feasonAuthToken')).feasonAuthToken !== token) throw new Error('Your account changed. Reopen Feason to continue.');
   if (!response.ok) {
-    if (response.status === 401) await chrome.storage.local.remove('feasonAuthToken');
+    if (response.status === 401) await expireCredential(token);
     const payload = await response.json().catch(() => null);
     throw Object.assign(new Error(errorMessage(response.status, payload)), { status: response.status });
   }
   return response;
 }
 
+function tokenSubject(token) {
+  try { const payload = JSON.parse(atob(String(token).split('.')[1].replaceAll('-', '+').replaceAll('_', '/'))); return typeof payload.sub === 'string' ? payload.sub : null; } catch { return null; }
+}
+async function expireCredential(token) {
+  const owner = tokenSubject(token);
+  if (owner) await chrome.storage.local.set({ feasonDraftOwner: owner });
+  await chrome.storage.local.remove('feasonAuthToken');
+}
+const privateSessionKeys = ['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState', 'feasonChatState', 'feasonSelection', 'companionDraft', 'libraryDraft', 'studyExport'];
+
 async function jsonApi(path, options = {}, publicRead = false) {
   return (await api(path, options, publicRead)).json();
+}
+
+const offline = createOfflineLibrary(path => api(path, {}, true));
+async function passage(reference) {
+  try { return await jsonApi(`/api/extension/passage?reference=${encodeURIComponent(reference)}`, {}, true); }
+  catch (error) { if (error.status && error.status < 500) throw error; return offline.find(reference); }
+}
+async function collections() {
+  const generation = authGeneration, items = [];
+  let cursor = null;
+  do {
+    const page = await jsonApi(`/api/reading-inbox?kind=collection${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+    if (generation !== authGeneration) throw new Error('Your account changed. Reopen Feason to continue.');
+    items.push(...page.items); cursor = page.nextCursor;
+  } while (cursor);
+  return { items };
+}
+async function today() {
+  const paths = ['/api/daily-verse', '/api/scripture/resume', '/api/memorize/summary', '/api/reading-plans', '/api/reading-plans/completions'];
+  const results = await Promise.allSettled(paths.map((p, i) => jsonApi(p, {}, i === 0 || i === 3)));
+  const keys = ['verse', 'resume', 'reviews', 'plans', 'progress'];
+  return Object.fromEntries(results.map((r, i) => [keys[i], r.status === 'fulfilled' ? r.value : { error: r.reason?.message || 'Temporarily unavailable.' }]));
 }
 
 async function askFeasy(message) {
@@ -113,6 +148,13 @@ async function signIn() {
     // toolbar popup and destroys its JavaScript context.
     const result = await chrome.identity.launchWebAuthFlow({ url: start.toString(), interactive: true });
     const token = authTokenFromCallback(result, redirect, state);
+    const previous = await chrome.storage.local.get(['feasonAuthToken', 'feasonDraftOwner']);
+    const owner = tokenSubject(token), previousOwner = previous.feasonDraftOwner || tokenSubject(previous.feasonAuthToken);
+    if (previousOwner && owner !== previousOwner) {
+      await chrome.storage.session.remove(privateSessionKeys);
+      await chrome.storage.session.set({ feasonAccountReset: Date.now() });
+    }
+    if (owner) await chrome.storage.local.set({ feasonDraftOwner: owner });
     await chrome.storage.local.set({ feasonAuthToken: token });
     await chrome.storage.session.remove('feasonAuthState');
     try { await chrome.action.openPopup(); } catch { /* Reopen the toolbar to continue on older Chrome. */ }
@@ -155,7 +197,7 @@ async function postGleam(draft) {
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      if (response.status === 401) await chrome.storage.local.remove('feasonAuthToken');
+      if (response.status === 401) await expireCredential(feasonAuthToken);
       const error = errorMessage(response.status, data);
       await chrome.storage.session.set({ feasonPostState: { status: 'error', error, code: response.status } });
       return { ok: false, error, status: response.status };
@@ -187,13 +229,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chatting ??= askFeasy(message).finally(() => { chatting = undefined; });
     task = chatting;
   } else if (message?.type === 'feason:passage') {
-    task = jsonApi(`/api/extension/passage?reference=${encodeURIComponent(String(message.reference || '').slice(0, 120))}`, {}, true).then(data => ({ ok: true, data }));
+    task = passage(String(message.reference || '').slice(0, 120)).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:word') {
     task = jsonApi(`/api/extension/lexicon?term=${encodeURIComponent(String(message.term || '').slice(0, 100))}`).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:inbox-list') {
-    task = jsonApi(`/api/reading-inbox${message.cursor ? `?cursor=${encodeURIComponent(String(message.cursor).slice(0, 100))}` : ''}`).then(data => ({ ok: true, data }));
+    task = jsonApi(`/api/reading-inbox?kind=all${message.cursor ? `&cursor=${encodeURIComponent(String(message.cursor).slice(0, 140))}` : ''}`).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:inbox-save') {
-    task = jsonApi('/api/reading-inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: message.item?.title, quote: message.item?.quote, url: message.item?.url }) }).then(data => ({ ok: true, data }));
+    task = jsonApi('/api/reading-inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(libraryPayload(message.item)) }).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:collections') {
+    task = collections().then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:inbox-edit') {
+    task = jsonApi('/api/reading-inbox', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(libraryPayload(message.item)) }).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:today') {
+    task = today().then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:practice-list') {
+    task = jsonApi('/api/memorize?scope=due').then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:practice-add') {
+    task = jsonApi('/api/memorize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message.card) }).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:practice-grade' && /^[a-f0-9-]{36}$/i.test(message.id || '')) {
+    task = jsonApi(`/api/memorize/${message.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade: message.grade, publishAchievement: false }) }).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:thread' && /^[a-f0-9-]{36}$/i.test(message.id || '')) {
+    task = jsonApi(`/api/razon/threads/${message.id}`).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:downloads') {
+    task = offline.list().then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:download') {
+    task = offline.save(String(message.reference || '').slice(0, 120), message.audio !== false).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:download-remove') {
+    task = offline.remove(message.key).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:inbox-delete') {
     task = jsonApi('/api/reading-inbox', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: message.id }) }).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:sign-in') {
@@ -206,8 +268,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     task = (async () => {
       authGeneration++;
       chatController?.abort();
-      await chrome.storage.local.remove('feasonAuthToken');
-      await chrome.storage.session.remove(['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState', 'feasonChatState', 'feasonSelection', 'companionDraft']);
+      await chrome.storage.local.remove(['feasonAuthToken', 'feasonDraftOwner']);
+      await chrome.storage.session.remove(['gleamDraft', 'pendingGleamDraft', 'feasonPostState', 'feasonAuthState', 'feasonChatState', 'feasonSelection', 'companionDraft', 'libraryDraft', 'studyExport']);
+      await chrome.storage.local.remove('feasonPlayback');
       return { ok: true };
     })();
   } else {

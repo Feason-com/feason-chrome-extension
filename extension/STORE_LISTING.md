@@ -18,8 +18,8 @@ copy a passage, or attach its first verse to a Gleam. Select text and choose
 press Ask. Answers include the passages actually cited and a grounding-check
 status; read those passages in context, because Feasy can make mistakes.
 
-Keep a page or quotation in your private Feason reading inbox, available on
-Feason’s desktop and mobile website. Explore biblical lemmas, transliterations,
+Keep a page or quotation in your private Feason reading inbox, organized into collections with tags, annotations, and Scripture references.
+Continue on Feason’s website or with the companion iOS update. Explore biblical lemmas, transliterations,
 or Strong’s codes without automatically saving an entry or publishing a post.
 
 Compose reflections, prayers, questions, praise, resources, or aphorisms in a
@@ -88,3 +88,23 @@ credentials in source code or public issues.
 Command+Shift+G (macOS), Ctrl+Shift+G, and the context menu also open the extension.
 The download page currently offers a developer installation; a Web Store listing
 must be uploaded, reviewed, and verified separately.
+
+## Version 1.3 review additions
+
+- Today: daily verse, reading resume, review count, and active reading plans.
+- Library: collections, private annotations, tags, Scripture links, and revision conflicts.
+- Studies: save and reopen a passage, owned Feasy conversation, source, word studies, and notes.
+- Practice: add a short passage, type recall, reveal, and grade. These reviews never publish achievements.
+- Offline: explicitly download up to 10 WEB chapters and recordings, 150 MB total. Play at 0.75–2× and resume position. Remove text and audio together.
+- Export: sourced Markdown or Print / Save PDF. Private notes are excluded unless selected.
+- Onboarding: open Today, expand Getting started, and follow the three steps.
+
+Only public Scripture and audio are cached persistently for offline use. Library data
+requires the account and a connection. Playback position is local and clears on sign-out.
+No additional permissions, hosts, remote code, telemetry, or page collection are added.
+
+For review: create and rename a collection; save a page with annotations; edit it on
+web and verify a stale extension edit is rejected. Save/reopen a workspace. Add a verse
+to Practice and record a review, verifying no Gleam was created. Download a WEB chapter,
+go offline, read and listen, then remove the download. Export with notes unchecked and
+checked, inspecting the resulting sheet. Sign out and confirm the export view clears.

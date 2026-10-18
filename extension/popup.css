@@ -158,3 +158,24 @@ a { color:var(--edge); text-underline-offset:3px; }
 .preview-body { font:21px/1.5 "EB Garamond",serif; white-space:pre-wrap; overflow-wrap:anywhere; }
 .preview-dialog > button { display:block; width:100%; margin-top:14px; }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
+.tool-navigation { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+select { width:100%; min-height:42px; border:1px solid rgb(251 249 244 / 22%); border-radius:10px; padding:10px; background:#142524; color:var(--paper); font:12px "DM Sans",sans-serif; margin:5px 0 12px; }
+summary { cursor:pointer; padding:6px 0; color:var(--edge); }
+details[open] > summary { margin-bottom:16px; }
+#practiceText { white-space:pre-wrap; font:22px/1.65 "EB Garamond",serif; margin-top:20px; }
+#recallAttempt { height:160px; padding:12px; background:#0002; border:1px solid #fff3; font-size:19px; }
+#chapterAudio { width:100%; margin:16px 0; }
+.check-label { display:flex; align-items:center; gap:8px; font-size:12px; margin:14px 0; }
+.check-label input { width:18px; height:18px; accent-color:var(--gilt); }
+.library-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.library-actions button { font-size:11px; }
+#collectionForm { margin-top:28px; }
+#collectionItems > div, #downloadedChapters > div { padding:12px 0; border-bottom:1px solid #fff2; }
+#todayCards .verse-daily { font:23px/1.6 "EB Garamond",serif; }
+#onboardingAction { margin:12px 8px 0 0; }
+body[data-tool="workspaces"] { --ground:#211c14; --card-top:#332d20; --card-bottom:#252017; }
+body[data-tool="practice"] { --ground:#14221d; --card-top:#20362b; --card-bottom:#192a23; }
+body[data-tool="today"] { --ground:#0e1d23; --card-top:#1b3038; --card-bottom:#14252c; }
+
+.library-note { white-space:pre-wrap; }
+#librarySearch { width:100%; margin:8px 0 18px; padding:12px; background:#0c1620; color:var(--paper); border:1px solid #fff3; border-radius:10px; }

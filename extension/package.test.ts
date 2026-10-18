@@ -19,7 +19,7 @@ it('ships a self-contained extension with every imported module, image, font, an
     expect(manifest.permissions).toEqual(['activeTab', 'contextMenus', 'identity', 'sidePanel', 'storage']);
     expect(manifest.content_scripts).toBeUndefined();
     expect(JSON.parse(readFileSync(join(unpacked, 'books.json'), 'utf8')).find((book: { number: number }) => book.number === 43).slug).toBe('john');
-    const queue: string[] = [manifest.background.service_worker, manifest.action.default_popup, manifest.side_panel.default_path.split('?')[0], 'books.json', ...Object.values<string>(manifest.icons)];
+    const queue: string[] = [manifest.background.service_worker, manifest.action.default_popup, manifest.side_panel.default_path.split('?')[0], 'books.json', 'print.html', ...Object.values<string>(manifest.icons)];
     const visited = new Set<string>();
     while (queue.length) {
       const asset = queue.shift()!;
