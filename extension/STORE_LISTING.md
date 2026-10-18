@@ -34,6 +34,8 @@ The extension does not scan pages or monitor browsing in the background.
 Bring Feason’s Scripture study and thoughtful sharing tools into an explicitly
 invoked browser companion.
 
+Version 1.4 adds a local verse lens, lasting source highlights, whole-library search, address-bar lookup, timestamped YouTube notes, and selected-source Flock study drafts with an explicit review before posting.
+
 ## URLs
 
 - Homepage: https://www.feason.com/chrome-extension
@@ -48,18 +50,19 @@ invoked browser companion.
   reference, or word to prepare a Feason study or sharing action.
 - `identity`: opens Feason’s authorization flow and validates its callback.
 - `sidePanel`: keeps Feason’s study tools available beside the current page.
+- `scripting`: reads the active page only after an explicit scan, quotation/video capture, or highlight-restoration action. Reference scanning is local; no page body is uploaded.
 - `storage`: stores the account credential locally; drafts, selected text,
   image previews, and the current Feasy result remain in browser session storage.
 - `https://www.feason.com/*`: authenticates and connects to Feason’s existing
   Scripture, word, conversation, private inbox, image-upload, and Gleam services.
 
-No content scripts, browsing-history permission, remote runtime code, third-party
-host permissions, or background page-content collection are used.
+No automatically injected page scripts, browsing-history permission, remote runtime code, third-party
+host permissions, or background page-content collection are used. The scripting permission supports explicit active-page actions only.
 
 ## Privacy disclosure
 
 The active page URL and title are read when the member opens or invokes the
-extension. Selected text is supplied by an explicit context-menu action and
+extension. Selected text is supplied by an explicit context-menu or capture action and
 stays in session storage until the member asks Feasy, saves privately, or posts.
 Feasy receives a question and bounded selection excerpt under the account’s
 existing allowance. Feasy conversations and private inbox items are saved to
@@ -101,10 +104,22 @@ must be uploaded, reviewed, and verified separately.
 
 Only public Scripture and audio are cached persistently for offline use. Library data
 requires the account and a connection. Playback position is local and clears on sign-out.
-No additional permissions, hosts, remote code, telemetry, or page collection are added.
+Version 1.3 added no permissions, hosts, remote code, telemetry, or page collection. Version 1.4 adds only the scripting permission for explicit active-page tools; host permissions remain unchanged.
 
 For review: create and rename a collection; save a page with annotations; edit it on
 web and verify a stale extension edit is rejected. Save/reopen a workspace. Add a verse
 to Practice and record a review, verifying no Gleam was created. Download a WEB chapter,
 go offline, read and listen, then remove the download. Export with notes unchecked and
 checked, inspecting the resulting sheet. Sign out and confirm the export view clears.
+
+
+## Version 1.4 reviewer notes
+
+1. Open a public article from the toolbar/context menu. Choose This page → Find Scripture. Only detected references are displayed; the article body is not sent to a service.
+2. Select a quotation, capture it as a highlight, and verify nothing is saved until Save privately. Reopen its source; restore saved highlights. Repeated ambiguous quotations are skipped.
+3. Start a YouTube video, capture its current moment, add a note, and save. Its source should reopen at the captured time.
+4. Search for an older item beyond the first loaded page, including an annotation or Scripture reference. Change the collection and paginate.
+5. Type `feason`, Tab, `John 15:5`, then Enter in Chrome’s address bar. Also try `word agape` and `find hope`. Typing suggestions makes no network request.
+6. Select sources for a Flock study pack. On Feason, review excerpts and sources, verify private notes begin excluded, choose a destination Flock, then review its composer. Posting requires the normal explicit Post action. Do not publish a reviewer’s private notes.
+
+New saved data consists of optional exact-text/prefix/suffix locators and video timestamps inside existing private library records. No new third-party processor, background browsing monitor, all-sites host permission, or remote runtime code is introduced.

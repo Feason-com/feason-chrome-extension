@@ -1,5 +1,5 @@
 import { FEASON_ORIGIN, draftFromContext, errorMessage, gleamPayload, studyQuestion, feasyEventLines, imageData } from './shared.mjs';
-import { createOfflineLibrary, libraryPayload } from './library.mjs';
+import { createOfflineLibrary, libraryPayload, pageSnapshot, findPageReferences, sourcePageUrl, omniboxDestination, escapeSuggestion } from './library.mjs';
 import { authTokenFromCallback, extensionIdFromRedirect } from './auth.mjs';
 
 const MENU_IDS = {
@@ -251,6 +251,40 @@ async function postGleam(draft) {
   }
 }
 
+let bookMetadata;
+async function localBooks() {
+  bookMetadata ??= fetch(chrome.runtime.getURL('books.json')).then(r => r.json()).catch(error => { bookMetadata = undefined; throw error; });
+  return bookMetadata;
+}
+async function activePage(action, locators = [], tab = null, expectedUrl = '') {
+  if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!Number.isInteger(tab?.id) || !sourcePageUrl(tab.url || '')) throw new Error('Open a public webpage, then choose Feason from its toolbar or right-click menu.');
+  try {
+    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: pageSnapshot, args: [action, locators, expectedUrl] });
+    if (!results?.[0]?.result) throw new Error('No page result');
+    return { ...results[0].result, tabId: tab.id };
+  } catch (error) {
+    throw new Error(/shorter quotation|page changed|cannot display page highlights/i.test(error.message || '') ? error.message : 'Chrome could not read this page. Open Feason from that page’s toolbar or right-click menu and try again. Some browser pages and embedded documents cannot be scanned.');
+  }
+}
+async function pageCommand(action) {
+  const generation = authGeneration;
+  const page = await activePage(action === 'scan' ? 'scan' : 'capture');
+  if (action === 'scan') return { url: page.url, title: page.title, references: findPageReferences(page.text, await localBooks()) };
+  if (action === 'restore') {
+    const items = []; let cursor = null, pages = 0;
+    do {
+      const data = await jsonApi(`/api/reading-inbox?kind=page&source=${encodeURIComponent(sourcePageUrl(page.url))}${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`);
+      if (generation !== authGeneration) throw new Error('Your account changed. Choose the page again.');
+      items.push(...data.items.filter(item => item.locator)); cursor = data.nextCursor;
+    } while (cursor && items.length < 200 && ++pages < 10);
+    if (generation !== authGeneration) throw new Error('Your account changed. Choose the page again.');
+    const restored = await activePage('restore', items.slice(0, 200).map(item => item.locator), {id:page.tabId, url:page.url}, page.url);
+    return { ...restored, limited: Boolean(cursor) };
+  }
+  return page;
+}
+
 // Restrict commands to our own composer. No content script or external page
 // can ask the worker to sign in, sign out, or publish.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -265,8 +299,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     task = passage(String(message.reference || '').slice(0, 120)).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:word') {
     task = jsonApi(`/api/extension/lexicon?term=${encodeURIComponent(String(message.term || '').slice(0, 100))}`).then(data => ({ ok: true, data }));
+  } else if (message?.type === 'feason:page' && ['scan', 'capture', 'restore', 'clear'].includes(message.action)) {
+    task = (message.action === 'clear' ? activePage('clear') : pageCommand(message.action)).then(data => ({ok:true, data}));
   } else if (message?.type === 'feason:inbox-list') {
-    task = jsonApi(`/api/reading-inbox?kind=all${message.cursor ? `&cursor=${encodeURIComponent(String(message.cursor).slice(0, 140))}` : ''}`).then(data => ({ ok: true, data }));
+    const params = new URLSearchParams({ kind: 'all' });
+    if (message.cursor) params.set('cursor', String(message.cursor).slice(0, 140));
+    if (message.query) params.set('q', String(message.query).slice(0, 200));
+    if (message.collection) params.set('collection', String(message.collection).slice(0, 36));
+    task = jsonApi(`/api/reading-inbox?${params}`).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:inbox-save') {
     task = jsonApi('/api/reading-inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(libraryPayload(message.item)) }).then(data => ({ ok: true, data }));
   } else if (message?.type === 'feason:collections') {
@@ -335,17 +375,28 @@ chrome.runtime.onInstalled.addListener(() => {
       ['feason-verse', 'Look up this Bible reference…', ['selection']],
       ['feason-word', 'Look up this biblical word…', ['selection']],
       ['feason-inbox', 'Keep in your private reading inbox…', ['page', 'link', 'selection']],
+      ['feason-page', 'Find Scripture on this page…', ['page']],
+      ['feason-highlight', 'Keep this highlight privately…', ['selection']],
+      ['feason-video', 'Keep this video moment…', ['video']],
     ]) chrome.contextMenus.create({ id, title, contexts });
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const tool = { 'feason-ask': 'feasy', 'feason-verse': 'study', 'feason-word': 'lexicon', 'feason-inbox': 'inbox' }[String(info.menuItemId)];
+  const tool = { 'feason-ask': 'feasy', 'feason-verse': 'study', 'feason-word': 'lexicon', 'feason-inbox': 'inbox', 'feason-highlight': 'inbox', 'feason-video': 'inbox', 'feason-page': 'page' }[String(info.menuItemId)];
   if (tool) {
     const context = draftFromContext(info, tab || {});
     const selection = { tool, text: String(info.selectionText || '').slice(0, 4000), url: context.sourceUrl, title: context.sourceTitle, nonce: Date.now() };
     // sidePanel.open must run in the context-menu gesture, before an await.
     const opening = chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => openComposer()) || openComposer();
+    if (['feason-highlight', 'feason-video'].includes(String(info.menuItemId))) {
+      try {
+        const page = await activePage('capture', [], tab);
+        selection.locator = page.locator;
+        selection.mediaSeconds = info.menuItemId === 'feason-video' ? page.mediaSeconds : null;
+        selection.text = page.locator?.exact || selection.text;
+      } catch { /* The selected text and source link still open as an unsaved draft. */ }
+    }
     await Promise.all([chrome.storage.session.set({ feasonSelection: selection }), opening]);
     return;
   }
@@ -356,4 +407,29 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   });
 
   await openComposer();
+});
+
+
+chrome.omnibox?.setDefaultSuggestion({ description: 'Study a passage, <match>word</match> term, or <match>find</match> your library' });
+chrome.omnibox?.onInputChanged.addListener((text, suggest) => {
+  // Local suggestions only. Typing never searches or sends private library data.
+  const query = String(text).trim().slice(0, 200), escaped = escapeSuggestion(query);
+  suggest(query ? [
+    { content: query, description: `Open in Feason: <match>${escaped}</match>` },
+    { content: `find ${query.replace(/^find\s+/i, '')}`, description: `Search your private library: ${escaped}` },
+  ] : []);
+});
+chrome.omnibox?.onInputEntered.addListener(async (input, disposition) => {
+  try {
+    const destination = omniboxDestination(input, await localBooks());
+    await chrome.storage.session.set({ feasonSelection: { ...destination, nonce: Date.now() } });
+    const url = chrome.runtime.getURL('popup.html?surface=sidepanel');
+    if (disposition === 'currentTab') await chrome.tabs.update({ url });
+    else await chrome.tabs.create({ url, active: disposition !== 'newBackgroundTab' });
+  } catch { await openComposer(); }
+});
+chrome.commands?.onCommand.addListener((name, tab) => {
+  if (name !== 'feason-study-page') return;
+  const opening = chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => openComposer()) || openComposer();
+  void Promise.all([opening, chrome.storage.session.set({ feasonSelection: {tool:'page', nonce:Date.now()} })]);
 });

@@ -39,7 +39,10 @@ function harness() {
       getRedirectURL: () => `https://${extensionId}.chromiumapp.org/feason-auth`,
       launchWebAuthFlow: vi.fn(async ({ url }: { url: string }) => `https://${extensionId}.chromiumapp.org/feason-auth?state=${new URL(url).searchParams.get('state')}&token=synthetic-token`),
     },
-    tabs: { query: vi.fn(async () => [{ title: 'A useful article', url: 'https://example.com/article' }]), create: vi.fn() },
+    tabs: { query: vi.fn(async () => [{ id: 11, windowId: 7, title: 'A useful article', url: 'https://example.com/article' }]), create: vi.fn(), update: vi.fn() },
+    scripting: { executeScript: vi.fn(async () => [{ result: {url:'https://example.com/article',title:'A useful article',text:'Read John 15:5 and 1 John 4:8.',locator:null,mediaSeconds:null} }]) },
+    omnibox: { setDefaultSuggestion: vi.fn(), onInputChanged: {addListener:vi.fn()}, onInputEntered: {addListener:vi.fn()} },
+    commands: { onCommand: {addListener:vi.fn()} },
     action: { openPopup: vi.fn(async () => undefined) },
     windows: { create: vi.fn(async () => undefined), getCurrent: vi.fn(async () => ({ id: 7 })) },
     sidePanel: { open: vi.fn(async () => undefined) },
@@ -468,4 +471,56 @@ it('refuses a private mutation if the encrypted credential cannot be verified', 
   await import('./background.mjs');
   expect(await h.send({ type: 'feason:inbox-save', item: { title: 'A page', url: 'https://example.org/' } })).toMatchObject({ ok: false, status: 401 });
   expect(h.fetchMock).not.toHaveBeenCalled(); expect(h.local.feasonAuthToken).toBeUndefined();
+});
+
+it('scans references only after an explicit page command and does not upload the page body', async () => {
+  const h = harness();
+  h.fetchMock.mockImplementation(async url => String(url).endsWith('/books.json') ? Response.json([{number:43,name:'John'},{number:62,name:'1 John'}]) : Response.json({items:[],nextCursor:null}));
+  await import('./background.mjs');
+  expect(h.chrome.scripting.executeScript).not.toHaveBeenCalled();
+  const result = await h.send({type:'feason:page',action:'scan'}) as {ok:boolean;data:{references:{reference:string}[]}};
+  expect(result.data.references.map(r=>r.reference)).toEqual(['John 15:5','1 John 4:8']);
+  expect(h.chrome.scripting.executeScript).toHaveBeenCalledWith(expect.objectContaining({target:{tabId:11},args:['scan',[],'']}));
+  expect(h.fetchMock.mock.calls.every(([url])=>String(url).endsWith('/books.json'))).toBe(true);
+  await expect(h.send({type:'feason:page',action:'capture'}, {id:extensionId,url:'https://untrusted.example/'})).rejects.toThrow('No receiver');
+});
+it('carries a page highlight into an unsaved private draft before a deliberate save', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
+  const locator = {exact:'Remain in my love.',prefix:'Before.',suffix:'After.'};
+  h.chrome.scripting.executeScript.mockResolvedValue([{result:{url:'https://example.com/article',title:'A useful article',text:'',locator,mediaSeconds:null}}] as never);
+  h.fetchMock.mockImplementation(async (_url, init) => init?.method === 'POST' ? Response.json({item:{id:'saved-highlight'}},{status:201}) : Response.json({items:[],nextCursor:null}));
+  await import('./background.mjs'); await loadPopup();
+  click('captureHighlight');
+  await vi.waitFor(()=>expect(document.body.dataset.tool).toBe('inbox'));
+  expect((document.getElementById('inboxQuote') as HTMLTextAreaElement).value).toBe(locator.exact);
+  expect(h.fetchMock.mock.calls.filter(([,init])=>init?.method === 'POST')).toHaveLength(0);
+  document.getElementById('inboxForm')!.dispatchEvent(new Event('submit',{cancelable:true}));
+  await vi.waitFor(()=>expect(h.fetchMock.mock.calls.some(([,init])=>init?.method === 'POST')).toBe(true));
+  const post = h.fetchMock.mock.calls.find(([,init])=>init?.method === 'POST')!;
+  expect(String(post[0])).toContain('/api/reading-inbox');
+  expect(JSON.parse(String(post[1]!.body))).toMatchObject({quote:locator.exact,locator});
+});
+it('searches unloaded library records and hands only selected item ids to the reviewed Flock pack', async () => {
+  const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
+  const id='11111111-1111-4111-8111-111111111111';
+  h.fetchMock.mockImplementation(async url => Response.json({items:String(url).includes('q=hope') ? [{id,kind:'page',title:'An older source',url:'https://example.org/old',quote:'Hope',tags:[]}] : [],nextCursor:null}));
+  await import('./background.mjs'); await loadPopup();
+  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  const search=document.getElementById('librarySearch') as HTMLInputElement; search.value='hope';
+  document.getElementById('librarySearchForm')!.dispatchEvent(new Event('submit',{cancelable:true}));
+  await vi.waitFor(()=>expect(document.getElementById('inboxItems')!.textContent).toContain('An older source'));
+  const checkbox=document.querySelector('#inboxItems input[type="checkbox"]') as HTMLInputElement; checkbox.click(); click('preparePack');
+  expect(h.chrome.tabs.create).toHaveBeenCalledWith({url:`https://www.feason.com/reading-inbox/pack?items=${id}`});
+  expect(h.fetchMock.mock.calls.every(([,init])=>!init?.method || init.method === 'GET')).toBe(true);
+});
+it('keeps address-bar suggestions local and performs the accepted lookup in a Feason surface', async () => {
+  const h=harness();
+  h.fetchMock.mockImplementation(async ()=>Response.json([{number:43,name:'John'}]));
+  await import('./background.mjs');
+  const suggest=vi.fn(); h.chrome.omnibox.onInputChanged.addListener.mock.calls[0][0]('<unsafe>',suggest);
+  expect(suggest.mock.calls[0][0][0].description).toContain('&lt;unsafe&gt;');
+  expect(h.fetchMock).not.toHaveBeenCalled();
+  await h.chrome.omnibox.onInputEntered.addListener.mock.calls[0][0]('John 15:5','newForegroundTab');
+  expect(h.session.feasonSelection).toMatchObject({tool:'study',text:'John 15:5'});
+  expect(h.chrome.tabs.create).toHaveBeenCalledWith({url:`chrome-extension://${extensionId}/popup.html?surface=sidepanel`,active:true});
 });

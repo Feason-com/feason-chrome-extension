@@ -14,7 +14,7 @@ const elements = Object.fromEntries([
   'studyTool', 'verseForm', 'verseReference', 'verseStatus', 'verseResult', 'verseTitle', 'verseText', 'copyVerseButton', 'anchorVerseButton', 'readChapterButton',
   'feasyTool', 'feasyForm', 'feasyQuestion', 'feasyContextNote', 'askFeasyButton', 'feasyStatus', 'feasyResult', 'feasyAnswer', 'feasySources', 'feasyVerification', 'continueFeasyButton', 'newQuestionButton',
   'inboxTool', 'inboxForm', 'inboxTitle', 'inboxUrl', 'inboxQuote', 'saveInboxButton', 'inboxStatus', 'inboxItems', 'refreshInboxButton', 'moreInboxButton', 'openInboxButton',
-  'todayTool', 'practiceTool', 'workspacesTool', 'lexiconTool', 'wordForm', 'wordTerm', 'wordStatus', 'wordResults', 'wordCaveat', 'openLexiconButton',
+  'pageTool', 'todayTool', 'practiceTool', 'workspacesTool', 'lexiconTool', 'wordForm', 'wordTerm', 'wordStatus', 'wordResults', 'wordCaveat', 'openLexiconButton',
   'imageControls', 'imageInput', 'imagePreview', 'gleamImage', 'removeImageButton', 'anchorLabel', 'chooseAnchorButton', 'removeAnchorButton',
   'previewButton', 'previewDialog', 'previewCategory', 'previewBody', 'previewAttribution', 'previewImage', 'previewAnchor', 'confirmPreviewButton', 'closePreviewButton',
 ].map((id) => [id, document.getElementById(id)]));
@@ -305,10 +305,10 @@ elements.viewGleamButton.addEventListener('click', () => {
 });
 
 function setTool(name) {
-  currentTool = ['today', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
+  currentTool = ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
   document.body.dataset.tool = currentTool;
   for (const button of elements.toolNavigation.querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.tool === currentTool ? 'page' : 'false');
-  for (const tool of ['today', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
+  for (const tool of ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
   setView(!signedIn ? 'sign-in' : currentTool === 'gleam' ? 'composer' : 'workspace');
   if (signedIn) companion?.open(currentTool);
 }
@@ -340,11 +340,12 @@ function applySelection(value) {
   if (value.tool === 'lexicon') elements.wordTerm.value = String(value.text || '').slice(0, 100);
   if (value.tool === 'feasy' && !elements.feasyQuestion.value) elements.feasyQuestion.value = 'How does this relate to Scripture?';
   if (value.tool === 'inbox') {
-    companion.startInboxContext();
+    companion.startInboxContext(value);
     elements.inboxTitle.value = String(value.title || '').slice(0, 200);
     elements.inboxUrl.value = safeWebUrl(value.url);
     elements.inboxQuote.value = String(value.text || '').slice(0, 4000);
   }
+  if (value.tool === 'inbox' && typeof value.query === 'string') companion.searchLibrary(value.query);
   setTool(value.tool);
   void saveCompanionDraft();
 }

@@ -16,8 +16,10 @@ it('ships a self-contained extension with every imported module, image, font, an
     const manifest = JSON.parse(readFileSync(join(unpacked, 'manifest.json'), 'utf8'));
     const sourceManifest = JSON.parse(readFileSync(join(root, 'extension/manifest.json'), 'utf8'));
     expect(manifest.key).toBe(sourceManifest.key);
-    expect(manifest.permissions).toEqual(['activeTab', 'contextMenus', 'identity', 'sidePanel', 'storage']);
+    expect(manifest.permissions).toEqual(['activeTab', 'contextMenus', 'identity', 'sidePanel', 'storage', 'scripting']);
     expect(manifest.content_scripts).toBeUndefined();
+    expect(manifest.host_permissions).toEqual(['https://www.feason.com/*']);
+    expect(manifest.omnibox.keyword).toBe('feason');
     expect(JSON.parse(readFileSync(join(unpacked, 'books.json'), 'utf8')).find((book: { number: number }) => book.number === 43).slug).toBe('john');
     const queue: string[] = [manifest.background.service_worker, manifest.action.default_popup, manifest.side_panel.default_path.split('?')[0], 'books.json', 'print.html', ...Object.values<string>(manifest.icons)];
     const visited = new Set<string>();

@@ -24,10 +24,10 @@ npm test
 Package the self-contained extension with:
 
 ```sh
-npm run extension:package -- /tmp/feason-extension-1.2.0.zip
+npm run extension:package -- /tmp/feason-extension-1.4.0.zip
 ```
 
-Version 1.2 matches the iOS Gleam composer and keeps sign-in, posting, and drafts intact across popup closure. Fonts and their licenses are bundled locally. See `extension/README.md` for installation, packaging, and Chrome Web Store notes.
+Version 1.4 matches the iOS Gleam composer and keeps sign-in, posting, and drafts intact across popup closure. Fonts and their licenses are bundled locally. See `extension/README.md` for installation, packaging, and Chrome Web Store notes.
 
 ## Security
 
@@ -36,3 +36,5 @@ Do not place Feason credentials, reviewer accounts, production responses, or use
 ## Trademark
 
 The source code is MIT licensed. The Feason name and logos identify the official Feason service and are not licensed for confusing or misleading use. See `TRADEMARKS.md`.
+
+Version 1.4 adds explicit page-reference scanning, exact-source highlights, full-library search, address-bar lookup, timestamped YouTube notes, and reviewed Flock study packs. Page scanning is local and runs only after an explicit action; the only new permission is `scripting`, with no new host access.

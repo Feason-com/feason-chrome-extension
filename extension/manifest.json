@@ -3,7 +3,7 @@
   "name": "Feason \u2014 Study & Share",
   "short_name": "Feason",
   "description": "Study Scripture, ask Feasy, keep a private reading inbox, explore biblical words, and share Gleams beside any page.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "homepage_url": "https://www.feason.com/chrome-extension",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA34EWxSjIkQWAvOFQLzISvQeRa/j1sI9xsXuI1aUzN2cQzRyPP+erF3oKzHqdHT58M34oqn54lsMzYvn+dChN5eZh96pWYLvvu//S9bxtBtfvnj3JtkQvLfs2RVDdzEAifjq9jMpvE/EfzLbvOIuOtM8xIdWXZloprrjZkylV/3QImrW4XqdcW925EGvvp3Y5tBSOR9GDZwuunc/s/RwNbFfu6el7tJIaEMcmX9hmrFSV08JaKgq8cjWtVxY7PEy1seB3kyNZC2yKp4ZCsOgYLiLHG+mCDsMLaK5FOBuhG8VR7Q59isnKreRe0IcLqn2mdYYq9U9idPRqhwE33Eut3wIDAQAB",
@@ -12,7 +12,8 @@
     "contextMenus",
     "identity",
     "sidePanel",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "https://www.feason.com/*"
@@ -39,6 +40,13 @@
         "mac": "Command+Shift+G"
       },
       "description": "Post a Gleam from this tab"
+    },
+    "feason-study-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Open Feason page study tools"
     }
   },
   "icons": {
@@ -46,5 +54,8 @@
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
+  },
+  "omnibox": {
+    "keyword": "feason"
   }
 }

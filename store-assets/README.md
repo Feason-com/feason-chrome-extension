@@ -8,3 +8,5 @@ Prepared for a Chrome Web Store submission; nothing in this directory confirms s
 - Listing copy, privacy disclosures, permission justifications, and reviewer steps are in `/Users/tint/Documents/feason-chrome-extension/extension/STORE_LISTING.md`.
 
 The sizes and full-bleed format follow [Chrome's image requirements](https://developer.chrome.com/docs/webstore/images). Review the final listing and reviewer access in the developer dashboard. Dashboard access was blocked in the automation session; these files have not been uploaded or published.
+
+Version 1.4: `page-tools-1280x800.jpg` shows the actual extension page-tools UI in the same local synthetic service harness, with sample content clearly labeled. The image contains no member data and is not evidence of Chrome Web Store publication.

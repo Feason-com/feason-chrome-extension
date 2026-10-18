@@ -256,8 +256,133 @@ export function libraryPayload(item) {
     "collectionId",
     "threadId",
     "wordTerms",
+    "locator",
+    "mediaSeconds",
   ];
   return Object.fromEntries(
     keys.filter((k) => item && Object.hasOwn(item, k)).map((k) => [k, item[k]]),
   );
+}
+
+
+// Used locally after an explicit page action. No page body is sent to Feason.
+export function findPageReferences(text, books) {
+  const abbreviations = { 1: ['Gen'], 2: ['Ex', 'Exod'], 3: ['Lev'], 4: ['Num'], 5: ['Deut'], 6: ['Josh'], 7: ['Judg'], 9: ['1 Sam'], 10: ['2 Sam'], 11: ['1 Kgs'], 12: ['2 Kgs'], 13: ['1 Chr'], 14: ['2 Chr'], 19: ['Psalm', 'Ps', 'Psa'], 20: ['Prov'], 21: ['Eccl'], 22: ['Song of Songs', 'Song', 'Canticles'], 23: ['Isa'], 24: ['Jer'], 25: ['Lam'], 26: ['Ezek'], 27: ['Dan'], 40: ['Matt', 'Mt'], 41: ['Mk'], 42: ['Lk'], 43: ['Jn'], 44: ['Acts of the Apostles'], 45: ['Rom'], 46: ['1 Cor'], 47: ['2 Cor'], 48: ['Gal'], 49: ['Eph'], 50: ['Phil'], 51: ['Col'], 52: ['1 Thess'], 53: ['2 Thess'], 54: ['1 Tim'], 55: ['2 Tim'], 57: ['Philem'], 58: ['Heb'], 59: ['Jas'], 60: ['1 Pet'], 61: ['2 Pet'], 62: ['1 Jn'], 63: ['2 Jn'], 64: ['3 Jn'], 66: ['Rev'] };
+  const aliases = books.flatMap(book => [book.name, ...(abbreviations[book.number] || [])].map(name => ({ name, book })));
+  const names = aliases.sort((a, b) => b.name.length - a.name.length).map(a => a.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll(' ', '\\s+'));
+  const pattern = new RegExp('\\b(' + names.join('|') + ')\\.?\\s+(\\d{1,3})(?::(\\d{1,3})(?:\\s*[-–—]\\s*(\\d{1,3}))?)?(?![\\d:])', 'gi');
+  const found = new Map();
+  for (const match of String(text).slice(0, 100000).matchAll(pattern)) {
+    const book = aliases.find(a => a.name.toLowerCase() === match[1].replace(/\s+/g, ' ').toLowerCase())?.book;
+    const chapter = Number(match[2]), first = Number(match[3]), end = Number(match[4]);
+    if (!book || chapter < 1 || chapter > 150 || (match[3] && (first < 1 || first > 176)) || (match[4] && (end < first || end > 176))) continue;
+    const reference = `${book.name} ${chapter}${match[3] ? ':' + first : ''}${match[4] ? '–' + end : ''}`;
+    if (!found.has(reference)) found.set(reference, { reference, context: String(text).slice(Math.max(0, match.index - 45), match.index + match[0].length + 65).replace(/\s+/g, ' ').trim() });
+    if (found.size >= 30) break;
+  }
+  return [...found.values()];
+}
+
+export function sourcePageUrl(value) {
+  const safe = safeWebUrl(value);
+  if (!safe) return '';
+  const url = new URL(safe), host = url.hostname;
+  const id = host === 'youtu.be' ? url.pathname.slice(1) : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(host) ? url.searchParams.get('v') || /^\/(?:shorts|live)\/([^/]+)/.exec(url.pathname)?.[1] : null;
+  if (id && /^[\w-]{11}$/.test(id)) return `https://www.youtube.com/watch?v=${id}`;
+  url.hash = ''; return url.toString();
+}
+export function sourceHref(item) {
+  const safe = safeWebUrl(item.url);
+  if (!safe) return '';
+  const url = new URL(safe);
+  if (item.mediaSeconds != null && sourcePageUrl(safe).startsWith('https://www.youtube.com/watch?v=')) {
+    const video = new URL(sourcePageUrl(safe)); video.searchParams.set('t', `${item.mediaSeconds}s`); return video.toString();
+  }
+  if (item.locator?.exact) {
+    const encode = s => encodeURIComponent(s).replace(/-/g, '%2D');
+    const {exact, prefix, suffix} = item.locator;
+    url.hash = `:~:text=${prefix ? encode(prefix) + '-,' : ''}${encode(exact)}${suffix ? ',-' + encode(suffix) : ''}`;
+  }
+  return url.toString();
+}
+export function videoTimestamp(seconds) {
+  const n = Math.max(0, Math.floor(seconds));
+  return n >= 3600 ? `${Math.floor(n / 3600)}:${String(Math.floor(n / 60) % 60).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}` : `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+}
+export function omniboxDestination(input, books) {
+  const query = String(input).trim().slice(0, 200);
+  if (/^word\s+/i.test(query)) return { tool: 'lexicon', text: query.replace(/^word\s+/i, '') };
+  const reference = findPageReferences(query, books)[0];
+  if (reference && !/^find\s+/i.test(query)) return { tool: 'study', text: reference.reference };
+  return { tool: 'inbox', query: query.replace(/^find\s+/i, '') };
+}
+export function escapeSuggestion(text) {
+  return String(text).replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&apos;'}[char]));
+}
+
+// Chrome serializes this function for chrome.scripting. Keep it self-contained.
+export function pageSnapshot(action = 'scan', locators = [], expectedUrl = '') {
+  if (expectedUrl && location.href.split('#')[0] !== expectedUrl.split('#')[0]) throw new Error('The page changed. Choose the action again.');
+  if (action === 'clear') { CSS.highlights?.delete('feason-study'); document.getElementById('feason-study-highlight-style')?.remove(); return { matched: 0 }; }
+  const normalize = text => String(text || '').replace(/\s+/g, ' ').trim();
+  const ignored = 'script,style,noscript,textarea,input,select,button,[contenteditable],nav,header,footer,[hidden],[aria-hidden="true"]';
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode(node) {
+    const parent = node.parentElement;
+    if (!parent || parent.closest(ignored) || !node.textContent) return NodeFilter.FILTER_REJECT;
+    const style = getComputedStyle(parent);
+    return style.display === 'none' || style.visibility === 'hidden' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+  }});
+  const nodes = []; let node, size = 0;
+  while ((node = walker.nextNode()) && nodes.length < 5000 && size < 100000) { nodes.push(node); size += node.textContent.length; }
+  const selection = window.getSelection();
+  let locator = null;
+  if (action === 'capture' && selection?.rangeCount && selection.toString().trim()) {
+    const range = selection.getRangeAt(0), exact = selection.toString().trim();
+    if (exact.length > 4000) throw new Error('Choose a shorter quotation (up to 4,000 characters).');
+    if (!range.commonAncestorContainer.parentElement?.closest(ignored)) {
+      const before = range.cloneRange(), after = range.cloneRange();
+      before.selectNodeContents(document.body); before.setEnd(range.startContainer, range.startOffset);
+      after.selectNodeContents(document.body); after.setStart(range.endContainer, range.endOffset);
+      locator = { exact, prefix: normalize(before.toString()).slice(-64), suffix: normalize(after.toString()).slice(0, 64) };
+    }
+  }
+  const url = new URL(location.href), host = url.hostname;
+  const videoId = host === 'youtu.be' ? url.pathname.slice(1) : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(host) ? url.searchParams.get('v') || /^\/(?:shorts|live)\/([^/]+)/.exec(url.pathname)?.[1] : null;
+  const video = videoId && /^[\w-]{11}$/.test(videoId) ? document.querySelector('video') : null;
+  const mediaSeconds = video && Number.isFinite(video.currentTime) && video.currentTime >= 0 && video.currentTime <= 86400 ? Math.floor(video.currentTime) : null;
+  if (action !== 'restore') return { url: location.href, title: document.title.slice(0, 200), locator, mediaSeconds, text: action === 'scan' ? nodes.map(n => n.textContent).join(' ').slice(0, 100000) : '' };
+  if (!CSS.highlights || typeof Highlight === 'undefined') throw new Error('This browser cannot display page highlights. Open the saved source link instead.');
+  const map = []; let text = '', previousBlock = null;
+  for (const n of nodes) {
+    const value = n.textContent;
+    const block = n.parentElement.closest('p,div,section,article,li,h1,h2,h3,h4,h5,h6,blockquote,td,dd,dt');
+    if (text && block !== previousBlock && !text.endsWith(' ')) { text += ' '; map.push({node:n, offset:0}); }
+    previousBlock = block;
+    for (let i = 0; i < value.length && text.length < 100000; i++) {
+      const char = /\s/.test(value[i]) ? ' ' : value[i];
+      if (char === ' ' && text.endsWith(' ')) continue;
+      text += char; map.push({node:n, offset:i});
+    }
+  }
+  const ranges = [];
+  for (const saved of locators.slice(0, 200)) {
+    const exact = normalize(saved.exact); if (!exact) continue;
+    let start = text.indexOf(exact), match = -1, count = 0;
+    while (start >= 0) {
+      const prefix = normalize(saved.prefix), suffix = normalize(saved.suffix);
+      if ((!prefix || text.slice(0, start).trimEnd().endsWith(prefix)) && (!suffix || text.slice(start + exact.length).trimStart().startsWith(suffix))) { match = start; count++; }
+      start = text.indexOf(exact, start + exact.length);
+    }
+    // If page edits have moved the surrounding context, a unique quotation is still safe.
+    if (!count && text.indexOf(exact) === text.lastIndexOf(exact)) { match = text.indexOf(exact); count = match >= 0 ? 1 : 0; }
+    if (count !== 1 || !map[match] || !map[match + exact.length - 1]) continue;
+    const range = document.createRange(), a = map[match], b = map[match + exact.length - 1];
+    range.setStart(a.node, a.offset); range.setEnd(b.node, b.offset + 1); ranges.push(range);
+  }
+  CSS.highlights.set('feason-study', new Highlight(...ranges));
+  let style = document.getElementById('feason-study-highlight-style');
+  if (!style) { style = document.createElement('style'); style.id = 'feason-study-highlight-style'; document.head.append(style); }
+  style.textContent = '::highlight(feason-study){background:#e3bd60;color:#172a22;}';
+  ranges[0]?.startContainer.parentElement?.scrollIntoView?.({behavior:'smooth', block:'center'});
+  return { matched: ranges.length, total: locators.length };
 }
