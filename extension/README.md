@@ -41,7 +41,11 @@ The static client depends on Feason’s authenticated service; it does not run a
 standalone backend. Explicit downloads cache up to 10 public WEB chapters and recordings (150 MB total). Real Chrome OAuth, side-panel
 permissions, and live account writes require installed-browser acceptance testing.
 
-## Local installation
+## Install from the Chrome Web Store
+
+[Add Feason to Chrome](https://chromewebstore.google.com/detail/feason-%E2%80%94-study-share/omkblpgeonilpgkdgieiingkigkhhfhn). Chrome keeps store installations updated automatically.
+
+## Local development installation
 
 1. Use Chrome 116 or later. The extension connects to the existing Feason
    authentication and Gleam endpoints at `https://www.feason.com`.

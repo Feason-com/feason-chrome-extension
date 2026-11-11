@@ -60,7 +60,12 @@ const postButton = () => document.getElementById('postButton') as HTMLButtonElem
 const view = () => document.body.dataset.view;
 const click = (id: string) => (document.getElementById(id) as HTMLButtonElement).click();
 function type(text: string) { input().value = text; input().dispatchEvent(new Event('input')); }
-function category(name: string) { (document.querySelector(`[data-category="${name}"].category-chip`) as HTMLButtonElement).click(); }
+function select(id: string, value: string) {
+  const field = document.getElementById(id) as HTMLSelectElement;
+  field.value = value;
+  field.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function category(name: string) { select('categoryList', name); }
 function submit() { document.getElementById('composer')!.dispatchEvent(new Event('submit', { cancelable: true })); }
 async function loadPopup() {
   document.open(); document.write(html); document.close();
@@ -285,7 +290,7 @@ describe('Study companion tools', () => {
     const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
     await import('./background.mjs'); await loadPopup();
     h.fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ reference: 'John 15:1–5', verses: [{ verse: 1, text: 'I am the true vine.' }], anchor: { book: 43, chapter: 15, verse: 1 }, href: '/scripture/john/15#verse-1' })));
-    (document.querySelector('[data-tool="study"]') as HTMLButtonElement).click();
+    select('toolSelect', 'study');
     (document.getElementById('verseReference') as HTMLInputElement).value = 'John 15:1-5';
     document.getElementById('verseForm')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(document.getElementById('verseTitle')?.textContent).toBe('John 15:1–5'));
@@ -326,7 +331,7 @@ describe('Study companion tools', () => {
     const h = harness(); h.local.feasonAuthToken = 'synthetic-token';
     await import('./background.mjs'); await loadPopup();
     h.fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ entry: { strongs: 'G3056', language: 'greek', lemma: 'λόγος', transliteration: 'logos', shortGloss: '<img src=x onerror=alert(1)>', definition: 'word', senses: [], source: 'Test lexicon', sourceVersion: '1' }, occurrences: [], caveat: 'Read in context.' })));
-    (document.querySelector('[data-tool="lexicon"]') as HTMLButtonElement).click();
+    select('toolSelect', 'lexicon');
     (document.getElementById('wordTerm') as HTMLInputElement).value = 'logos';
     document.getElementById('wordForm')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(document.getElementById('wordResults')?.textContent).toContain('G3056'));
@@ -390,7 +395,7 @@ it('shares edits between the popup and sidebar without retaining an accepted pos
   await h.chrome.storage.session.set({ gleamDraft: { body: 'An edit from the other panel.', category: 'reflection', editorId: 'other-panel' } });
   expect(input().value).toBe('An edit from the other panel.');
   submit(); await vi.waitFor(() => expect(view()).toBe('success'));
-  (document.querySelector('[data-tool="gleam"]') as HTMLButtonElement).click();
+  select('toolSelect', 'gleam');
   expect(input().value).toBe(''); expect(postButton().disabled).toBe(true);
   expect(h.fetchMock).toHaveBeenCalledOnce();
 });
@@ -434,7 +439,7 @@ it('clears a removed conversation in the other open surface before the next ques
   await import('./background.mjs'); await loadPopup();
   await h.chrome.storage.session.remove('feasonChatState');
   expect(document.getElementById('feasyAnswer')!.textContent).toBe('');
-  (document.querySelector('[data-tool="feasy"]') as HTMLButtonElement).click();
+  select('toolSelect', 'feasy');
   (document.getElementById('feasyQuestion') as HTMLTextAreaElement).value = 'A fresh question';
   h.fetchMock.mockResolvedValueOnce(new Response('data: {"type":"text","delta":"Fresh answer"}\n\ndata: {"type":"done"}\n\n'));
   document.getElementById('feasyForm')!.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -452,7 +457,7 @@ it('refreshes after an overlapping save and drops saved page defaults before ano
     return Response.json({ items: [savedItem], nextCursor: null });
   });
   await import('./background.mjs'); await loadPopup();
-  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  select('toolSelect', 'inbox');
   await vi.waitFor(() => expect(reads).toBe(1));
   (document.getElementById('inboxTitle') as HTMLInputElement).value = savedItem.title;
   (document.getElementById('inboxUrl') as HTMLInputElement).value = savedItem.url;
@@ -505,7 +510,7 @@ it('searches unloaded library records and hands only selected item ids to the re
   const id='11111111-1111-4111-8111-111111111111';
   h.fetchMock.mockImplementation(async url => Response.json({items:String(url).includes('q=hope') ? [{id,kind:'page',title:'An older source',url:'https://example.org/old',quote:'Hope',tags:[]}] : [],nextCursor:null}));
   await import('./background.mjs'); await loadPopup();
-  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  select('toolSelect', 'inbox');
   const search=document.getElementById('librarySearch') as HTMLInputElement; search.value='hope';
   document.getElementById('librarySearchForm')!.dispatchEvent(new Event('submit',{cancelable:true}));
   await vi.waitFor(()=>expect(document.getElementById('inboxItems')!.textContent).toContain('An older source'));
@@ -544,7 +549,7 @@ it('opens an accepted address-bar library search without replacing an unsaved ed
   h.fetchMock.mockImplementation(async url => Response.json({items:String(url).includes('kind=collection') ? [{id:collectionId,kind:'collection',title:'My collection'}] : [item], nextCursor:null}));
   h.session.feasonSelection = {tool:'feasy',text:'Keep this page context',url:'https://example.org/context'};
   await import('./background.mjs'); await loadPopup();
-  (document.querySelector('[data-tool="inbox"]') as HTMLButtonElement).click();
+  select('toolSelect', 'inbox');
   await vi.waitFor(()=>expect(document.getElementById('inboxItems')!.textContent).toContain('My source'));
   [...document.querySelectorAll<HTMLButtonElement>('#inboxItems button')].find(b=>b.textContent === 'Edit notes & collection')!.click();
   const draft = {inboxTitle:'Edited title',inboxUrl:item.url,inboxQuote:'Edited quote',inboxNote:'Unsaved private note',inboxTags:'hope, faith',inboxReference:'John 15:9',inboxCollection:collectionId};
