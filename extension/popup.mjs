@@ -10,7 +10,7 @@ const elements = Object.fromEntries([
   'loadingView', 'openFeasonButton', 'postButton', 'removeSourceButton', 'signInButton',
   'signInError', 'signInView', 'sourceCard', 'sourceDomain', 'sourceTitle', 'statusMessage',
   'successTitle', 'successView', 'viewGleamButton',
-  'companionHeader', 'toolNavigation', 'openPanelButton', 'workspace', 'selectionCard', 'selectionText', 'clearSelectionButton',
+  'companionHeader', 'toolNavigation', 'toolSelect', 'openPanelButton', 'workspace', 'selectionCard', 'selectionText', 'clearSelectionButton',
   'studyTool', 'verseForm', 'verseReference', 'verseStatus', 'verseResult', 'verseTitle', 'verseText', 'copyVerseButton', 'anchorVerseButton', 'readChapterButton',
   'feasyTool', 'feasyForm', 'feasyQuestion', 'feasyContextNote', 'askFeasyButton', 'feasyStatus', 'feasyResult', 'feasyAnswer', 'feasySources', 'feasyVerification', 'continueFeasyButton', 'newQuestionButton',
   'inboxTool', 'inboxForm', 'inboxTitle', 'inboxUrl', 'inboxQuote', 'saveInboxButton', 'inboxStatus', 'inboxItems', 'refreshInboxButton', 'moreInboxButton', 'openInboxButton',
@@ -50,7 +50,6 @@ function setView(name) {
     ['workspace', elements.workspace],
   ]) element.hidden = name !== view;
   elements.companionHeader.hidden = elements.toolNavigation.hidden = name === 'loading' || name === 'sign-in';
-  if (name === 'composer') elements.categoryList.querySelector('[aria-checked="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
 function snapshotDraft() {
@@ -68,25 +67,7 @@ function saveDraft() {
 }
 
 function renderCategories() {
-  elements.categoryList.replaceChildren();
-  for (const item of CATEGORIES) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'category-chip';
-    button.dataset.category = item.key;
-    button.textContent = item.label;
-    button.setAttribute('role', 'radio');
-    button.addEventListener('click', () => chooseCategory(item.key, true));
-    button.addEventListener('keydown', (event) => {
-      const index = CATEGORIES.findIndex((entry) => entry.key === category);
-      const next = { ArrowRight: (index + 1) % CATEGORIES.length, ArrowLeft: (index + CATEGORIES.length - 1) % CATEGORIES.length, Home: 0, End: CATEGORIES.length - 1 }[event.key];
-      if (next === undefined) return;
-      event.preventDefault();
-      chooseCategory(CATEGORIES[next].key, true);
-      elements.categoryList.children[next].focus();
-    });
-    elements.categoryList.append(button);
-  }
+  elements.categoryList.replaceChildren(...CATEGORIES.map(item => new Option(item.label, item.key)));
 }
 
 function chooseCategory(nextCategory, persist = false) {
@@ -98,13 +79,7 @@ function chooseCategory(nextCategory, persist = false) {
   elements.body.placeholder = details.placeholder;
   elements.attributionRow.hidden = category !== 'aphorism';
   elements.imageControls.hidden = category !== 'resource';
-  for (const chip of elements.categoryList.children) {
-    const selected = chip.dataset.category === category;
-    chip.classList.toggle('selected', selected);
-    chip.setAttribute('aria-checked', String(selected));
-    chip.tabIndex = selected ? 0 : -1;
-    if (selected) chip.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }
+  elements.categoryList.value = category;
   updateForm();
   if (persist) { elements.statusMessage.textContent = ''; void saveDraft(); }
 }
@@ -130,7 +105,8 @@ function updateForm() {
   elements.cancelButton.disabled = posting;
   elements.previewButton.disabled = elements.postButton.disabled;
   elements.imageInput.disabled = posting || preparingImage;
-  for (const chip of elements.categoryList.children) chip.disabled = posting;
+  elements.categoryList.disabled = posting;
+  elements.toolSelect.disabled = posting;
 }
 
 function renderDraft(nextDraft) {
@@ -159,7 +135,7 @@ function renderDraft(nextDraft) {
 function renderAuthState(state) {
   signingIn = state?.status === 'pending';
   elements.signInButton.disabled = signingIn;
-  elements.signInButton.textContent = signingIn ? 'Finish signing in…' : 'Sign in to Feason ↗';
+  elements.signInButton.textContent = signingIn ? 'Finish signing in…' : 'Sign in to Feason';
   elements.signInError.textContent = state?.error || '';
 }
 
@@ -307,7 +283,7 @@ elements.viewGleamButton.addEventListener('click', () => {
 function setTool(name, refreshLibrary = false) {
   currentTool = ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon', 'gleam'].includes(name) ? name : 'gleam';
   document.body.dataset.tool = currentTool;
-  for (const button of elements.toolNavigation.querySelectorAll('button')) button.setAttribute('aria-current', button.dataset.tool === currentTool ? 'page' : 'false');
+  elements.toolSelect.value = currentTool;
   for (const tool of ['today', 'page', 'practice', 'workspaces', 'study', 'feasy', 'inbox', 'lexicon']) elements[`${tool}Tool`].hidden = tool !== currentTool;
   setView(!signedIn ? 'sign-in' : currentTool === 'gleam' ? 'composer' : 'workspace');
   if (signedIn) companion?.open(currentTool, refreshLibrary);
@@ -463,7 +439,7 @@ async function lookupWord(event, term = elements.wordTerm.value) {
     if (data.provenance) {
       elements.wordResults.append(node('p', `Text: ${data.provenance.text}. Tagging: ${data.provenance.tagging}. ${data.provenance.license}.`, 'field-note'));
       const sourceUrl = safeWebUrl(data.provenance.url);
-      if (sourceUrl) { const source = node('a', 'View corpus source ↗'); source.href = sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer'; elements.wordResults.append(source); }
+      if (sourceUrl) { const source = node('a', 'View corpus source'); source.href = sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer'; elements.wordResults.append(source); }
     }
     elements.wordCaveat.textContent = data.caveat || '';
     elements.wordStatus.textContent = entries.length ? '' : data.reason || 'No entry found. Try a lemma, transliteration, or Strong’s code.';
@@ -472,7 +448,8 @@ async function lookupWord(event, term = elements.wordTerm.value) {
   finally { button.disabled = false; }
 }
 
-for (const button of elements.toolNavigation.querySelectorAll('button')) button.addEventListener('click', () => setTool(button.dataset.tool));
+elements.toolSelect.addEventListener('change', () => setTool(elements.toolSelect.value));
+elements.categoryList.addEventListener('change', () => chooseCategory(elements.categoryList.value, true));
 for (const input of [elements.feasyQuestion, elements.verseReference, elements.wordTerm, elements.inboxTitle, elements.inboxUrl, elements.inboxQuote]) input.addEventListener('input', () => void saveCompanionDraft());
 elements.openPanelButton.addEventListener('click', () => { void chrome.sidePanel.open({ windowId: browserWindowId }).catch(() => { elements.statusMessage.textContent = 'Open the Feason side panel from Chrome’s toolbar.'; }); });
 elements.clearSelectionButton.addEventListener('click', () => { applySelection(null); void chrome.storage.session.remove('feasonSelection'); });

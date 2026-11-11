@@ -25,23 +25,18 @@ button:not(:disabled):active { transform:scale(.97); }
 h1 { margin:0; font:500 30px/1.05 "Cormorant Garamond", Georgia, serif; }
 p { margin:0; }
 .shell { width:100%; }
-.grabber { width:40px; height:4px; margin:10px auto 8px; border-radius:999px; background:rgb(251 249 244 / 25%); }
-.compose-header { display:grid; grid-template-columns:90px 1fr 90px; align-items:center; gap:8px; padding:0 16px 8px; }
+.compose-header { display:grid; grid-template-columns:68px 1fr 68px; align-items:center; gap:8px; padding:16px 14px 10px; }
 .compose-header h1 { text-align:center; font-size:26px; white-space:nowrap; }
 .quiet-button, .primary-button, .secondary-button { border:1px solid rgb(251 249 244 / 30%); border-radius:999px; padding:10px 18px; font-weight:600; transition:opacity 180ms ease, transform 180ms ease; }
-.quiet-button { background:transparent; justify-self:start; }
+.quiet-button { background:transparent; justify-self:start; border-color:transparent; padding:8px 0; font-size:13px; font-weight:500; }
 .primary-button { border-color:color-mix(in srgb, var(--edge) 75%, transparent); background:radial-gradient(ellipse at 30% 0%, var(--edge), var(--light) 65%, var(--base)); box-shadow:inset 0 1px 2px rgb(255 255 255 / 45%), 0 3px 8px rgb(0 0 0 / 12%); color:#17120f; }
 .primary-button:not(:disabled):hover { filter:brightness(1.08); }
 .primary-button:disabled { border-color:transparent; box-shadow:none; background:rgb(251 249 244 / 9%); color:rgb(251 249 244 / 35%); }
-.post-button { min-width:78px; justify-self:end; }
+.post-button { min-width:64px; justify-self:end; padding:8px 14px; font-size:13px; background:rgb(251 249 244 / 14%); color:var(--paper); border-color:rgb(251 249 244 / 45%); box-shadow:none; }
 .secondary-button { background:rgb(251 249 244 / 7%); }
-.categories { display:flex; gap:8px; overflow-x:auto; padding:6px 16px 10px; scroll-padding-inline:16px; scrollbar-width:none; }
-.categories::-webkit-scrollbar { display:none; }
-.category-chip { flex:0 0 auto; border:1px solid rgb(251 249 244 / 24%); border-radius:999px; padding:9px 16px; background:rgb(251 249 244 / 8%); color:var(--paper-muted); font-size:13px; font-weight:600; }
-.category-chip.selected { border-color:var(--edge); background:radial-gradient(ellipse at 30% 0%, var(--edge), var(--light) 65%, var(--base)); box-shadow:inset 0 1px 2px rgb(255 255 255 / 45%), 0 3px 8px rgb(0 0 0 / 12%); color:#17120f; }
-.writing-card { display:flex; flex-direction:column; min-height:332px; margin:0 16px 8px; padding:18px 18px 14px; border:1px solid color-mix(in srgb, var(--edge) 18%, transparent); border-radius:22px; background:radial-gradient(ellipse at 85% 0%, color-mix(in srgb, var(--base) 12%, transparent), transparent 65%), linear-gradient(var(--card-top), var(--card-bottom)); }
+.writing-card { display:flex; flex-direction:column; min-height:300px; margin:0 14px 8px; padding:16px; border:1px solid color-mix(in srgb, var(--edge) 18%, transparent); border-radius:22px; background:radial-gradient(ellipse at 85% 0%, color-mix(in srgb, var(--base) 12%, transparent), transparent 65%), linear-gradient(var(--card-top), var(--card-bottom)); }
 .eyebrow { color:var(--eyebrow); font-size:11px; font-weight:600; letter-spacing:2.2px; }
-textarea { display:block; width:100%; flex:0 0 auto; height:204px; min-height:164px; margin:8px 0; padding:8px 0; resize:none; border:0; border-radius:6px; background:transparent; color:var(--paper); caret-color:var(--edge); font:440 20px/1.6 "EB Garamond", Georgia, serif; }
+textarea { display:block; width:100%; flex:0 0 auto; height:clamp(200px,calc(100dvh - 360px),480px); min-height:180px; margin:8px 0; padding:8px 0; resize:none; border:0; border-radius:6px; background:transparent; color:var(--paper); caret-color:var(--edge); font:440 20px/1.6 "EB Garamond", Georgia, serif; }
 body[data-category="aphorism"] textarea { height:150px; min-height:130px; }
 textarea::placeholder { color:rgb(251 249 244 / 40%); }
 textarea:focus-visible { outline:none; }
@@ -97,7 +92,7 @@ body[data-view="sign-in"], body[data-view="loading"] { background:var(--night); 
 .loading { gap:14px; }
 @keyframes arrive { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
-@media (max-width:374px) { .compose-header { grid-template-columns:78px 1fr 78px; gap:4px; } .compose-header h1 { font-size:24px; } .quiet-button { padding-inline:12px; } }
+@media (max-width:374px) { .compose-header { gap:4px; } .compose-header h1 { font-size:24px; } .companion-header { gap:8px; } }
 [hidden] { display:none !important; }
 
 /* Study rooms share the native app’s dark surfaces and gold controls. */
@@ -107,12 +102,9 @@ body[data-tool="inbox"] { --ground:#101923; --card-top:#1c2a37; --card-bottom:#1
 body[data-tool="lexicon"] { --ground:#25170e; --card-top:#3c2819; --card-bottom:#2e1e13; }
 html:has(body[data-surface="sidepanel"]) { width:100%; }
 body[data-surface="sidepanel"] { min-width:280px; min-height:100vh; }
-.companion-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px 3px; }
+.companion-header { display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid rgb(251 249 244 / 18%); background:rgb(0 0 0 / 8%); }
 .companion-brand { display:flex; align-items:center; gap:8px; font:500 24px "Cormorant Garamond",serif; }
 .companion-header .text-button { font-size:11px; }
-.tool-navigation { display:flex; gap:2px; padding:3px 10px 9px; border-bottom:1px solid rgb(251 249 244 / 12%); }
-.tool-navigation button { flex:1; min-width:0; min-height:38px; padding:6px 3px; border:0; border-radius:8px; background:transparent; font-size:11px; color:var(--paper-muted); }
-.tool-navigation button[aria-current="page"] { color:var(--paper); background:rgb(251 249 244 / 12%); box-shadow:inset 0 -1px var(--edge); }
 .workspace { padding:24px 18px 30px; }
 .tool-panel > h1 { font-size:35px; margin:8px 0; }
 .tool-intro { color:var(--paper-muted); font:18px/1.5 "EB Garamond",serif; margin-bottom:24px; }
@@ -158,7 +150,6 @@ a { color:var(--edge); text-underline-offset:3px; }
 .preview-body { font:21px/1.5 "EB Garamond",serif; white-space:pre-wrap; overflow-wrap:anywhere; }
 .preview-dialog > button { display:block; width:100%; margin-top:14px; }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
-.tool-navigation { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
 select { width:100%; min-height:42px; border:1px solid rgb(251 249 244 / 22%); border-radius:10px; padding:10px; background:#142524; color:var(--paper); font:12px "DM Sans",sans-serif; margin:5px 0 12px; }
 summary { cursor:pointer; padding:6px 0; color:var(--edge); }
 details[open] > summary { margin-bottom:16px; }
@@ -187,3 +178,17 @@ body[data-tool="today"] { --ground:#0e1d23; --card-top:#1b3038; --card-bottom:#1
 #pageReferences .study-result h2 { margin-top:0; }
 .inbox-item .check-label { font:11px/1.5 'DM Sans',sans-serif; color:var(--paper-muted); }
 .inbox-item .check-label input { width:auto; min-width:18px; min-height:18px; }
+
+/* Keep tools and Gleam type in compact native pickers, leaving room to write. */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.tool-navigation { min-width:0; flex:1; margin-left:auto; }
+.tool-navigation select { width:100%; min-height:42px; margin:0; padding:9px 10px; font-size:13px; border-radius:12px; background:rgb(0 0 0 / 12%); }
+.companion-header .text-button { flex-shrink:0; min-height:42px; padding:8px 0; }
+.companion-brand { flex-shrink:0; }
+.kind-picker { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px 12px; }
+.kind-picker label { color:var(--paper-muted); font-size:12px; }
+.kind-picker select { width:160px; min-height:42px; margin:0; background:rgb(0 0 0 / 12%); border-radius:12px; font-size:13px; }
+.tool-navigation option, .kind-picker option { background:var(--card-top); color:var(--paper); }
+body[data-surface="sidepanel"] #openPanelButton { display:none; }
+body[data-surface="sidepanel"] .tool-navigation { flex:0 1 160px; }
+body[data-tool="gleam"] { background:radial-gradient(ellipse at 10% 0%,color-mix(in srgb,var(--light) 18%,transparent),transparent 65%),linear-gradient(145deg,var(--ground),color-mix(in srgb,var(--ground) 82%,#080b12)); background-attachment:fixed; }
