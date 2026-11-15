@@ -30,6 +30,23 @@ export function safeWebUrl(value) {
   }
 }
 
+// Public source attachments should not carry private query or fragment data.
+export function publicGleamSource(value) {
+  const safe = safeWebUrl(value);
+  if (!safe) return '';
+  const url = new URL(safe);
+  // The standard YouTube watch path needs one canonical, public video ID.
+  const isYouTubeWatch = ['https://youtube.com', 'https://www.youtube.com', 'https://m.youtube.com']
+    .includes(url.origin) && url.pathname === '/watch';
+  const videoIds = isYouTubeWatch ? url.searchParams.getAll('v') : [];
+  url.search = '';
+  url.hash = '';
+  if (videoIds.length === 1 && /^[A-Za-z0-9_-]{11}$/.test(videoIds[0])) {
+    url.searchParams.set('v', videoIds[0]);
+  }
+  return url.href;
+}
+
 export function textLimitWithSource(category, source) {
   const limit = categoryLimit(category);
   return source ? Math.max(0, limit - source.length - 2) : limit;
@@ -47,7 +64,7 @@ function fitTextForSource(text, source) {
 
 export function gleamBodyWithSource(text, source, category = 'reflection') {
   const cleanText = (text || '').trim();
-  const cleanSource = safeWebUrl(source);
+  const cleanSource = publicGleamSource(source);
   if (!cleanSource) return cleanText;
   return cleanText ? `${cleanText}\n\n${cleanSource}` : cleanSource;
 }
@@ -108,18 +125,25 @@ export function imageData(value) {
   try { return { type: match[1], bytes: Uint8Array.from(atob(match[2]), char => char.charCodeAt(0)) }; } catch { return null; }
 }
 
-export function draftFromContext(info = {}, tab = {}) {
+// Other tools, such as the private reading inbox, keep their own URL policy.
+export function contextSource(info = {}, tab = {}) {
   const pageUrl = safeWebUrl(info.pageUrl || tab.url);
   const linkUrl = safeWebUrl(info.linkUrl);
-  const source = linkUrl || pageUrl;
-  const selection = typeof info.selectionText === 'string' ? info.selectionText : '';
-  const body = fitTextForSource(selection, source);
-
   return {
-    body,
-    category: source ? 'resource' : 'reflection',
-    sourceUrl: source,
+    sourceUrl: linkUrl || pageUrl,
     sourceTitle: linkUrl && linkUrl !== pageUrl ? new URL(linkUrl).hostname : (tab.title || '').trim(),
+  };
+}
+
+export function draftFromContext(info = {}, tab = {}) {
+  const context = contextSource(info, tab);
+  const sourceUrl = publicGleamSource(context.sourceUrl);
+  const selection = typeof info.selectionText === 'string' ? info.selectionText : '';
+  return {
+    body: fitTextForSource(selection, sourceUrl),
+    category: sourceUrl ? 'resource' : 'reflection',
+    sourceUrl,
+    sourceTitle: context.sourceTitle,
   };
 }
 

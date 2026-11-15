@@ -1,14 +1,14 @@
 import { initializeCompanion } from './companion.mjs';
 import {
   CATEGORIES, FEASON_ORIGIN, categoryDetails, categoryLimit, draftFromContext,
-  gleamPayload, safeWebUrl, textLimitWithSource, studyQuestion, imageData,
+  gleamPayload, publicGleamSource, safeWebUrl, textLimitWithSource, studyQuestion, imageData,
 } from './shared.mjs';
 
 const elements = Object.fromEntries([
   'accountButton', 'anotherButton', 'attribution', 'attributionRow', 'body', 'cancelButton',
   'categoryList', 'characterCount', 'composer', 'draftStatus', 'kindLabel', 'limitMessage',
   'loadingView', 'openFeasonButton', 'postButton', 'removeSourceButton', 'signInButton',
-  'signInError', 'signInView', 'sourceCard', 'sourceDomain', 'sourceTitle', 'statusMessage',
+  'signInError', 'signInView', 'sourceCard', 'sourceLink', 'sourceTitle', 'statusMessage',
   'successTitle', 'successView', 'viewGleamButton',
   'companionHeader', 'toolNavigation', 'toolSelect', 'openPanelButton', 'workspace', 'selectionCard', 'selectionText', 'clearSelectionButton',
   'studyTool', 'verseForm', 'verseReference', 'verseStatus', 'verseResult', 'verseTitle', 'verseText', 'copyVerseButton', 'anchorVerseButton', 'readChapterButton',
@@ -92,7 +92,7 @@ function updateForm() {
   elements.characterCount.classList.toggle('near-limit', limit - count <= 40);
   let error = '';
   try { gleamPayload(snapshotDraft()); } catch (failure) { error = failure.message; }
-  const tooLong = count > limit || safeWebUrl(draft.sourceUrl).length > categoryLimit(category);
+  const tooLong = count > limit || draft.sourceUrl.length > categoryLimit(category);
   elements.limitMessage.textContent = tooLong ? `This ${categoryDetails(category).label.toLowerCase()} is over the limit. Shorten the text or remove the attached page.` : '';
   elements.body.setAttribute('aria-invalid', String(tooLong));
   elements.postButton.disabled = posting || preparingImage || Boolean(error) || tooLong || !signedIn;
@@ -113,7 +113,7 @@ function renderDraft(nextDraft) {
   draft = {
     body: typeof nextDraft?.body === 'string' ? nextDraft.body : '',
     category: categoryDetails(nextDraft?.category).key,
-    sourceUrl: safeWebUrl(nextDraft?.sourceUrl),
+    sourceUrl: publicGleamSource(nextDraft?.sourceUrl),
     sourceTitle: typeof nextDraft?.sourceTitle === 'string' ? nextDraft.sourceTitle : '',
     attribution: typeof nextDraft?.attribution === 'string' ? nextDraft.attribution : '',
     image: typeof nextDraft?.image === 'string' && imageData(nextDraft.image) ? nextDraft.image : '',
@@ -125,7 +125,7 @@ function renderDraft(nextDraft) {
   elements.sourceCard.hidden = !draft.sourceUrl;
   if (draft.sourceUrl) {
     elements.sourceTitle.textContent = draft.sourceTitle || 'Attached page';
-    elements.sourceDomain.textContent = new URL(draft.sourceUrl).hostname;
+    elements.sourceLink.textContent = draft.sourceUrl;
     elements.sourceCard.title = draft.sourceUrl;
   }
   chooseCategory(draft.category);
@@ -516,9 +516,10 @@ async function initialize() {
   elements.openPanelButton.hidden = !chrome.sidePanel || !Number.isInteger(browserWindowId) || document.body.dataset.surface === 'sidepanel';
   const pending = session.pendingGleamDraft && !worker.posting;
   renderDraft(pending ? session.pendingGleamDraft : session.gleamDraft || draftFromContext({}, tabs[0] || {}));
-  if (pending) {
+  const cleansSavedSource = !worker.posting && session.gleamDraft?.sourceUrl && session.gleamDraft.sourceUrl !== draft.sourceUrl;
+  if (pending || cleansSavedSource) {
     await saveDraft();
-    await chrome.storage.session.remove(['pendingGleamDraft', 'feasonPostState']);
+    if (pending) await chrome.storage.session.remove(['pendingGleamDraft', 'feasonPostState']);
   }
   const savedTools = session.companionDraft || {};
   elements.feasyQuestion.value = savedTools.question || '';

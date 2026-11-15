@@ -1,4 +1,4 @@
-import { FEASON_ORIGIN, draftFromContext, errorMessage, gleamPayload, studyQuestion, feasyEventLines, imageData } from './shared.mjs';
+import { FEASON_ORIGIN, contextSource, draftFromContext, errorMessage, gleamPayload, studyQuestion, feasyEventLines, imageData } from './shared.mjs';
 import { createOfflineLibrary, libraryPayload, pageSnapshot, findPageReferences, sourcePageUrl, omniboxDestination, escapeSuggestion } from './library.mjs';
 import { authTokenFromCallback, extensionIdFromRedirect } from './auth.mjs';
 
@@ -385,7 +385,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tool = { 'feason-ask': 'feasy', 'feason-verse': 'study', 'feason-word': 'lexicon', 'feason-inbox': 'inbox', 'feason-highlight': 'inbox', 'feason-video': 'inbox', 'feason-page': 'page' }[String(info.menuItemId)];
   if (tool) {
-    const context = draftFromContext(info, tab || {});
+    const context = contextSource(info, tab || {});
     const selection = { tool, text: String(info.selectionText || '').slice(0, 4000), url: context.sourceUrl, title: context.sourceTitle, nonce: Date.now() };
     // sidePanel.open must run in the context-menu gesture, before an await.
     const opening = chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => openComposer()) || openComposer();
