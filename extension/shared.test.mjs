@@ -9,7 +9,7 @@ import {
   errorMessage,
   gleamBodyWithSource,
   gleamPayload,
-  safeWebUrl,
+  contextSource, publicGleamSource, safeWebUrl,
   textLimitWithSource,
 } from './shared.mjs';
 
@@ -27,6 +27,36 @@ describe('Chrome Gleam helpers', () => {
       sourceUrl: 'https://example.com/grace',
       sourceTitle: 'Grace',
     });
+  });
+
+  it('cleans attached sources from a page, a right-click link and selected text', () => {
+    const page = 'https://example.test/article?private=value#section';
+    const link = 'https://elsewhere.test/resource?private=value#section';
+    expect(draftFromContext({}, { url: page }).sourceUrl).toBe('https://example.test/article');
+    expect(draftFromContext({ pageUrl: page, linkUrl: link }).sourceUrl).toBe('https://elsewhere.test/resource');
+    expect(draftFromContext({ pageUrl: page, selectionText: 'Selected words' })).toMatchObject({
+      body: 'Selected words', sourceUrl: 'https://example.test/article',
+    });
+    expect(contextSource({ pageUrl: page, linkUrl: link }).sourceUrl).toBe(link);
+  });
+
+  it('keeps only one validated public YouTube watch ID', () => {
+    const watch = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    expect(publicGleamSource(`${watch}&t=20&private=value#section`)).toBe(watch);
+    expect(publicGleamSource(`${watch}&v=AAAAAAAAAAA`)).toBe('https://www.youtube.com/watch');
+    expect(publicGleamSource('https://www.youtube.com/watch?v=too-long-to-be-a-video-id')).toBe('https://www.youtube.com/watch');
+    expect(publicGleamSource('https://not-youtube.test/watch?v=dQw4w9WgXcQ')).toBe('https://not-youtube.test/watch');
+    expect(publicGleamSource('https://www.youtube.com:8080/watch?v=dQw4w9WgXcQ')).toBe('https://www.youtube.com:8080/watch');
+    expect(publicGleamSource('https://www.youtube.com/redirect?v=dQw4w9WgXcQ')).toBe('https://www.youtube.com/redirect');
+    expect(publicGleamSource('https://name:password@example.test/page?private=value')).toBe('');
+  });
+
+  it('applies the public URL policy to the outgoing body without rewriting authored text', () => {
+    expect(gleamPayload({
+      body: 'My wording: https://example.test/?keep=authored',
+      sourceUrl: 'https://example.test/item?private=value#section',
+      category: 'resource',
+    }).body).toBe('My wording: https://example.test/?keep=authored\n\nhttps://example.test/item');
   });
 
   it('keeps selected text in the editor and its source outside the editor', () => {

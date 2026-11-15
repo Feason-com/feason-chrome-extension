@@ -123,7 +123,7 @@ describe('Chrome extension auth and posting lifecycle', () => {
     await import('./background.mjs');
     h.chrome.action.openPopup.mockRejectedValueOnce(new Error('Unavailable'));
     const handler = h.chrome.contextMenus.onClicked.addListener.mock.calls[0][0];
-    await handler({ menuItemId: 'feason-post-selection', selectionText: 'Selected words.', pageUrl: 'https://example.org/source' }, { title: 'Source' });
+    await handler({ menuItemId: 'feason-post-selection', selectionText: 'Selected words.', pageUrl: 'https://example.org/source?private=value#section' }, { title: 'Source' });
     expect(h.session.pendingGleamDraft).toMatchObject({ body: 'Selected words.', sourceUrl: 'https://example.org/source' });
     expect(h.chrome.windows.create).toHaveBeenCalledWith({ url: extensionUrl, type: 'popup', width: 420, height: 650 });
   });
@@ -257,6 +257,40 @@ describe('Chrome extension auth and posting lifecycle', () => {
     expect(h.session.pendingGleamDraft).toBeUndefined();
     expect(h.session.feasonPostState).toBeUndefined();
     expect(h.session.gleamDraft).toMatchObject({ body: 'Selected text.' });
+  });
+
+  it('cleans reloaded attachments and shows the outgoing link inline and in preview', async () => {
+    const h = harness();
+    h.local.feasonAuthToken = 'synthetic-token';
+    const sourceUrl = 'https://example.test/resource';
+    h.session.gleamDraft = { body: 'My note.', sourceUrl: `${sourceUrl}?private=value#section`, category: 'resource' };
+    await import('./background.mjs');
+    await loadPopup();
+
+    expect(document.getElementById('sourceLink')?.textContent).toBe(sourceUrl);
+    expect(h.session.gleamDraft).toMatchObject({ sourceUrl });
+    const dialog = document.getElementById('previewDialog') as HTMLDialogElement;
+    // jsdom does not yet implement the modal lifecycle.
+    dialog.showModal = () => dialog.setAttribute('open', '');
+    dialog.close = () => dialog.removeAttribute('open');
+    click('previewButton');
+    expect(dialog.hasAttribute('open')).toBe(true);
+    const expectedBody = `My note.\n\n${sourceUrl}`;
+    expect(document.getElementById('previewBody')?.textContent).toBe(expectedBody);
+    click('confirmPreviewButton');
+    await vi.waitFor(() => expect(view()).toBe('success'));
+    expect(JSON.parse(h.fetchMock.mock.calls[0][1]?.body as string).body).toBe(expectedBody);
+  });
+
+  it('cleans attachments at the worker boundary even without a composer', async () => {
+    const h = harness();
+    h.local.feasonAuthToken = 'synthetic-token';
+    await import('./background.mjs');
+    await h.send({
+      type: 'feason:post',
+      draft: { body: 'My note.', sourceUrl: 'https://example.test/resource?private=value#section', category: 'resource' },
+    });
+    expect(JSON.parse(h.fetchMock.mock.calls[0][1]?.body as string).body).toBe('My note.\n\nhttps://example.test/resource');
   });
 
   it('clears credentials and session drafts when signing out', async () => {

@@ -50,7 +50,7 @@ textarea:focus-visible { outline:none; }
 .source-copy { flex:1; min-width:0; }
 .source-copy strong, .source-copy span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .source-copy strong { font-size:12px; font-weight:500; }
-.source-copy span { margin-top:2px; color:var(--paper-muted); font-size:11px; }
+.source-copy span { margin-top:2px; color:var(--paper-muted); font-size:11px; white-space:normal; overflow-wrap:anywhere; max-height:6em; overflow:auto; }
 .icon-button { width:42px; flex:0 0 auto; border:0; border-radius:50%; background:transparent; color:var(--paper-muted); font-size:24px; }
 .caesura { width:100%; height:1px; flex-shrink:0; background:linear-gradient(90deg, transparent, rgb(201 162 74 / 40%), transparent); }
 .writing-card > .caesura { margin-top:auto; }
